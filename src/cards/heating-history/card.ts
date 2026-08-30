@@ -6,6 +6,7 @@ import { registerCard, type HomeAssistant, type LovelaceCardEditor } from "../..
 import { localTimelineMarks } from "../../shared/timeline-layout";
 import { parseHistoryConfig, seriesId, type HeatingHistoryCardConfig, type HistorySeriesConfig } from "./config";
 import { fetchHistory } from "./ha-history";
+import { heldPointAt, heldStepPaths, heldTrueIntervals } from "./geometry";
 
 const ELEMENT = "alx-heating-history-card";
 const WIDTH = 360;
@@ -32,6 +33,7 @@ interface SeriesGeometry {
   points: HistoryPoint[];
   numeric: Array<HistoryPoint & { value: number }>;
   path: string;
+  paths: string[];
 }
 
 interface TimelineGeometry {
@@ -244,7 +246,11 @@ export class HeatingHistoryCard extends LitElement {
     const xWeather = (value: number): number => WEATHER_LEFT + ((value - weatherMin) / Math.max(1, weatherMax - weatherMin)) * (WEATHER_RIGHT - WEATHER_LEFT);
     const series = pointSets.map((entry): SeriesGeometry => {
       const mapX = entry.series.kind === "outdoor_temperature" ? xWeather : xTemp;
-      return { ...entry, path: entry.numeric.map((point) => `${mapX(point.value)},${y(point.time)}`).join(" ") };
+      const paths = entry.series.kind === "target_temperature"
+        ? heldStepPaths(entry.points, mapX, y, range.end)
+        : [];
+      const path = entry.numeric.map((point) => `${mapX(point.value)},${y(point.time)}`).join(" ");
+      return { ...entry, path, paths };
     });
     const geometry = { span, height, minimum, maximum, marks: localTimelineMarks(range, controller.scale), y, xTemp, xWeather, series };
     this.geometryCache = { revision: this.revision, scale: controller.scale, start: range.start, end: range.end, geometry };
@@ -275,7 +281,7 @@ export class HeatingHistoryCard extends LitElement {
           <text class="temp-label" x="${xTemp(value)}" y="14">${value.toFixed(1)}°</text>
         `)}
         <line class="lane" x1="${WEATHER_LEFT - 9}" x2="${WEATHER_LEFT - 9}" y1="0" y2="${height}"></line>
-        ${geometry.series.map(({ series, color, points, numeric, path }) => {
+        ${geometry.series.map(({ series, color, points, numeric, path, paths }) => {
           if (series.kind === "precipitation_estimate") {
             return points.filter((point) => typeof point.value === "number" && point.value > 0).map((point) => svg`
               <line data-kind="precipitation" x1="${WEATHER_LEFT}" x2="${WEATHER_LEFT + Math.min(46, Number(point.value) * 8)}"
@@ -283,25 +289,47 @@ export class HeatingHistoryCard extends LitElement {
             `);
           }
           if (series.kind === "heating_request") {
-            const visible = points.filter((point) => point.time >= visibleTop && point.time <= visibleBottom);
-            const active = visible.filter((point) => point.value === true);
-            const latest = active.at(-1) ?? visible.at(-1);
+            const active = heldTrueIntervals(points, visibleTop, visibleBottom);
+            const latest = heldPointAt(points, visibleBottom);
             if (!latest) return nothing;
+            const requestLabel = latest.value === null
+              ? "Heat req. unavailable"
+              : latest.value === true ? "Heat req." : "No heat req.";
             const placement = placeDirectLabel(
               MAIN_LEFT + 4,
-              y(latest.time),
-              active.length > 0 ? 55 : 67,
+              y(visibleBottom),
+              Math.min(104, requestLabel.length * 6),
               12,
               { left: MAIN_LEFT, right: MAIN_RIGHT, top: labelTop, bottom: labelBottom },
               occupied,
             );
             return svg`
               <g data-kind="heating-request" stroke="${color}">
-                ${active.map((point) => svg`<line class="request" x1="${MAIN_LEFT - 10}" x2="${MAIN_LEFT - 3}" y1="${y(point.time)}" y2="${y(point.time)}"></line>`)}
+                ${active.map((interval) => svg`<line class="request" x1="${MAIN_LEFT - 6}" x2="${MAIN_LEFT - 6}" y1="${y(interval.start)}" y2="${y(interval.end)}"></line>`)}
               </g>
               <text data-label="heating-request" class="direct-label" fill="${color}" x="${placement.x}" y="${placement.baseline}">
-                ${active.length > 0 ? "Heat req." : "No heat req."}
+                ${requestLabel}
               </text>
+            `;
+          }
+          if (series.kind === "target_temperature") {
+            const latest = heldPointAt(points, visibleBottom);
+            if (!latest) return nothing;
+            const available = typeof latest.value === "number";
+            const label = available ? series.label : `${series.label} unavailable`;
+            const placement = placeDirectLabel(
+              available ? xTemp(latest.value as number) + 4 : MAIN_LEFT + 4,
+              y(visibleBottom),
+              Math.min(104, label.length * 6),
+              12,
+              { left: MAIN_LEFT, right: MAIN_RIGHT, top: labelTop, bottom: labelBottom },
+              occupied,
+            );
+            return svg`
+              <g data-kind="target_temperature">
+                ${paths.map((heldPath) => svg`<path class="series" stroke="${color}" d="${heldPath}"></path>`)}
+              </g>
+              <text data-label="target_temperature" class="direct-label" fill="${color}" x="${placement.x}" y="${placement.baseline}">${label}</text>
             `;
           }
           const visible = numeric.filter((point) => point.time >= visibleTop && point.time <= visibleBottom);
@@ -348,8 +376,11 @@ export class HeatingHistoryCard extends LitElement {
   private renderInspector(controller?: ScrollHistoryController) {
     if (!controller || this.inspectingAt === undefined) return nothing;
     const values = this.timelineGeometry(controller).series.flatMap(({ series, points }) => {
-      const closest = closestPoint(points, this.inspectingAt!);
+      const closest = ["target_temperature", "heating_request"].includes(series.kind)
+        ? heldPointAt(points, this.inspectingAt!)
+        : closestPoint(points, this.inspectingAt!);
       if (!closest) return [];
+      if (closest.value === null) return [`${series.label} unavailable`];
       if (typeof closest.value === "boolean") return [`${series.label} ${closest.value ? "on" : "off"}`];
       if (series.kind === "precipitation_estimate") {
         const label = series.label.replace(/\s+(?:est\.?|estimated)$/iu, "");

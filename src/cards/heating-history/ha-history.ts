@@ -24,17 +24,20 @@ const valueFor = (
   series: HistorySeriesConfig,
   state: string,
   attributes: Record<string, unknown>,
-): number | boolean | undefined => {
+): number | boolean | null | undefined => {
+  const normalizedState = state.trim().toLowerCase();
+  if (["unknown", "unavailable"].includes(normalizedState)) return null;
   const attribute = defaultAttribute(series);
   const raw = attribute ? attributes[attribute] : state;
+  if (raw === undefined) return undefined;
+  if (raw === null || ["unknown", "unavailable"].includes(String(raw).trim().toLowerCase())) return null;
   if (series.kind === "heating_request") {
-    if (raw === undefined || raw === null) return undefined;
     const normalized = String(raw).trim().toLowerCase();
-    if (["", "unknown", "unavailable"].includes(normalized)) return undefined;
+    if (normalized === "") return null;
     return raw === true || ["on", "heat", "heating"].includes(normalized);
   }
   const numeric = Number.parseFloat(String(raw));
-  return Number.isFinite(numeric) ? numeric : undefined;
+  return Number.isFinite(numeric) ? numeric : null;
 };
 
 const parseSeries = (series: HistorySeriesConfig, states: HistoryState[]): HistoryPoint[] => {

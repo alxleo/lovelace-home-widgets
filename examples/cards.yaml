@@ -26,7 +26,8 @@ cards:
     title: Away
     start_action: script.example_apply_timed_away
     cancel_action: script.example_cancel_timed_away
-    active_entity: timer.example_timed_away
+    mode_entity: sensor.example_away_control
+    mode_attribute: mode
     ends_at_entity: timer.example_timed_away
     ends_at_attribute: finishes_at
     duration_field: duration_minutes

@@ -11,6 +11,7 @@ const EXPECTED_SCREENSHOTS = [
   "history-week-bright-theme.png",
   "timed-away-active.png",
   "timed-away-failure.png",
+  "timed-away-fault.png",
   "timed-away-picker.png",
 ];
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);

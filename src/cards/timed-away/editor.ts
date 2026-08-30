@@ -3,10 +3,12 @@ import { customElement, property, state } from "lit/decorators.js";
 import { fireConfigChanged, type HomeAssistant } from "../../shared/home-assistant";
 import { parseTimedAwayConfig, type TimedAwayCardConfig } from "./model";
 
-type EditableKey = "title" | "start_action" | "cancel_action" | "active_entity" | "ends_at_entity" | "duration_field" | "ends_at_attribute";
+type EditableKey = "title" | "start_action" | "cancel_action" | "mode_entity" | "mode_attribute" | "active_entity" | "ends_at_entity" | "duration_field" | "ends_at_attribute";
 const FIELDS: Array<[EditableKey, string]> = [
   ["title", "Title"], ["start_action", "Start action (domain.service)"],
-  ["cancel_action", "Cancel action (domain.service)"], ["active_entity", "Active-state entity"],
+  ["cancel_action", "Resume/cancel action (domain.service)"], ["mode_entity", "Authoritative mode entity"],
+  ["mode_attribute", "Mode attribute (optional)"],
+  ["active_entity", "Legacy v0.1.0 active entity (optional)"],
   ["ends_at_entity", "End-time entity (optional)"], ["duration_field", "Duration field"],
   ["ends_at_attribute", "End-time attribute (optional)"],
 ];
