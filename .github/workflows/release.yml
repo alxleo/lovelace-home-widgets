@@ -1,0 +1,39 @@
+name: Release assets
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@94196ee1d15439c1b6651cd87ef14e88ec435966 # v4
+        with:
+          node-version: 24
+      - name: Validate semantic release tag
+        run: node -e "const id='(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)'; if (!new RegExp('^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-'+id+'(?:\\.'+id+')*)?$').test(process.env.GITHUB_REF_NAME)) process.exit(1)"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm audit
+      - run: npm run build
+      - run: npm run verify:dist
+      - run: npm run privacy
+      - run: npm run privacy:private
+        env:
+          ALX_PRIVACY_TERMS_B64: ${{ secrets.ALX_PRIVACY_TERMS_B64 }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: npm run visual:contract
+      - run: npm run privacy:artifacts
+      - name: Attach immutable bundle and visual evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" --clobber dist/alx-home-widgets.js artifacts/visual-contract.json artifacts/screenshots/*.png

@@ -1,0 +1,11 @@
+[
+  "climate.example_zone_a",
+  "climate.example_zone_b",
+  "weather.example_location",
+  "sensor.example_outdoor_temperature",
+  "sensor.example_precipitation_estimate",
+  "sensor.example_heating_request",
+  "timer.example_timed_away",
+  "script.example_apply_timed_away",
+  "script.example_cancel_timed_away"
+]

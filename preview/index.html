@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>ALX Home Widgets preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --primary-text-color:#f4f4f4; --secondary-text-color:#aaa;
+        --primary-color:#ff9f32; --card-background-color:#171717;
+        --secondary-background-color:#303030; --divider-color:#404040;
+        --error-color:#ff6659; --warning-color:#ffb74d;
+      }
+      :root.light {
+        color-scheme:light; --primary-text-color:#202124; --secondary-text-color:#61666b;
+        --card-background-color:#fff; --secondary-background-color:#f1f3f4;
+        --divider-color:#d8dadc; --error-color:#c62828;
+      }
+      * { box-sizing:border-box; }
+      body { margin:0; background:#0d0d0d; font-family:system-ui,sans-serif; }
+      :root.light body { background:#eceff1; }
+      main { display:grid; gap:10px; width:min(100%,430px); margin:auto; padding:8px; }
+      ha-card { display:block; border:1px solid var(--divider-color); border-radius:16px; box-shadow:0 2px 8px rgba(0,0,0,.18); }
+      .toolbar { position:fixed; z-index:50; right:10px; top:10px; }
+      .toolbar button { width:38px; height:38px; border:1px solid var(--divider-color); border-radius:50%; color:var(--primary-text-color); background:var(--card-background-color); }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar"><button id="theme" aria-label="Toggle theme">◐</button></div>
+    <main id="cards"></main>
+    <script type="module" src="/preview/preview.mjs"></script>
+  </body>
+</html>

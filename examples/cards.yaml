@@ -1,0 +1,32 @@
+type: vertical-stack
+cards:
+  - type: custom:alx-heating-history-card
+    title: Heating history
+    default_scale: day
+    series:
+      - kind: actual_temperature
+        entity: climate.example_zone_a
+        label: Zone A
+      - kind: target_temperature
+        entity: climate.example_zone_a
+        label: Target
+      - kind: actual_temperature
+        entity: climate.example_zone_b
+        label: Zone B
+      - kind: heating_request
+        entity: climate.example_zone_a
+        label: Heat
+      - kind: outdoor_temperature
+        entity: sensor.example_outdoor_temperature
+        label: Out
+      - kind: precipitation_estimate
+        entity: sensor.example_precipitation_estimate
+        label: Rain
+  - type: custom:alx-timed-away-card
+    title: Away
+    start_action: script.example_apply_timed_away
+    cancel_action: script.example_cancel_timed_away
+    active_entity: timer.example_timed_away
+    ends_at_entity: timer.example_timed_away
+    ends_at_attribute: finishes_at
+    duration_field: duration_minutes
