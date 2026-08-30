@@ -2,12 +2,13 @@ import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { registerCard, splitAction, type HomeAssistant, type LovelaceCardEditor } from "../../shared/home-assistant";
 import {
+  authoritativeMode,
   durationLabel,
   endLabel,
-  isActiveState,
   minutesToSlider,
   parseTimedAwayConfig,
   sliderToMinutes,
+  type TimedAwayMode,
   type TimedAwayCardConfig,
 } from "./model";
 
@@ -27,7 +28,8 @@ export class TimedAwayCard extends LitElement {
       title: "Away",
       start_action: "script.example_apply_timed_away",
       cancel_action: "script.example_cancel_timed_away",
-      active_entity: "timer.example_timed_away",
+      mode_entity: "sensor.example_away_control",
+      mode_attribute: "mode",
       ends_at_entity: "timer.example_timed_away",
       ends_at_attribute: "finishes_at",
     };
@@ -37,29 +39,30 @@ export class TimedAwayCard extends LitElement {
   @state() private config?: TimedAwayCardConfig;
   @state() private open = false;
   @state() private selectedMinutes = 510;
-  @state() private busy = false;
+  @state() private busy?: "apply" | "cancel";
   @state() private error?: string;
 
   setConfig(input: unknown): void { this.config = parseTimedAwayConfig(input); }
 
   protected render() {
     if (!this.config) return nothing;
-    const active = isActiveState(this.hass?.states[this.config.active_entity]?.state);
+    const backendMode = this.hass ? authoritativeMode(this.config, this.hass.states) : "mismatch";
+    const mode: TimedAwayMode = this.busy === "apply"
+      ? "applying-away"
+      : this.busy === "cancel" ? "restoring" : backendMode;
     const endState = this.config.ends_at_entity ? this.hass?.states[this.config.ends_at_entity] : undefined;
     const endsAt = this.config.ends_at_attribute
       ? endState?.attributes[this.config.ends_at_attribute]
       : endState?.state;
     return html`
       <ha-card>
-        <div class="summary">
+        <div class="summary" data-mode=${mode}>
           <div class="icon" aria-hidden="true">⌂</div>
           <div class="copy">
             <h2>${this.config.title}</h2>
-            <span>${active ? `Away until ${this.formatEndsAt(endsAt)}` : "Heating follows its schedule"}</span>
+            <span role=${mode === "fault" || mode === "mismatch" ? "alert" : nothing}>${this.statusText(mode, endsAt)}</span>
           </div>
-          ${active
-            ? html`<button class="cancel" ?disabled=${this.busy} @click=${this.cancel}>Cancel</button>`
-            : html`<button class="open" @click=${() => { this.error = undefined; this.open = true; }}>Set away</button>`}
+          ${this.renderSummaryAction(mode)}
         </div>
         ${this.error && !this.open ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       </ha-card>
@@ -69,7 +72,7 @@ export class TimedAwayCard extends LitElement {
 
   private renderSheet() {
     return html`
-      <div class="backdrop" @click=${() => { if (!this.busy) this.open = false; }}></div>
+      <div class="backdrop" @click=${() => { if (this.busy === undefined) this.open = false; }}></div>
       <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="away-title">
         <div class="grab"></div>
         <h3 id="away-title">How long are you away?</h3>
@@ -84,8 +87,8 @@ export class TimedAwayCard extends LitElement {
           @input=${(inputEvent: Event) => { this.selectedMinutes = sliderToMinutes(Number((inputEvent.target as HTMLInputElement).value)); }}>
         <div class="readout"><strong>${durationLabel(this.selectedMinutes)}</strong><span>until ${endLabel(this.selectedMinutes)}</span></div>
         <div class="actions">
-          <button class="dismiss" ?disabled=${this.busy} @click=${() => { this.open = false; }}>Cancel</button>
-          <button class="apply" ?disabled=${this.busy} @click=${this.apply}>${this.busy ? "Applying…" : "Apply away"}</button>
+          <button class="dismiss" ?disabled=${this.busy !== undefined} @click=${() => { this.open = false; }}>Cancel</button>
+          <button class="apply" ?disabled=${this.busy !== undefined} @click=${this.apply}>${this.busy === "apply" ? "Applying…" : "Apply away"}</button>
         </div>
         ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       </section>
@@ -94,9 +97,27 @@ export class TimedAwayCard extends LitElement {
 
   private choose(minutes: number): void { this.selectedMinutes = minutes; }
 
+  private statusText(mode: TimedAwayMode, endsAt: unknown): string {
+    if (mode === "schedule") return "Heating follows its schedule";
+    if (mode === "applying-away") return "Applying away and confirming heating";
+    if (mode === "away") return `Away until ${this.formatEndsAt(endsAt)}`;
+    if (mode === "restoring") return "Restoring heating schedule";
+    if (mode === "fault") return "Away control fault · resume schedule";
+    return "Heating state mismatch · resume schedule";
+  }
+
+  private renderSummaryAction(mode: TimedAwayMode) {
+    if (mode === "schedule") {
+      return html`<button class="open" @click=${() => { this.error = undefined; this.open = true; }}>Set away</button>`;
+    }
+    if (mode === "restoring") return html`<span class="working" aria-live="polite">Restoring…</span>`;
+    const label = mode === "away" ? "Cancel" : "Resume schedule";
+    return html`<button class="cancel" ?disabled=${this.busy !== undefined} @click=${this.cancel}>${label}</button>`;
+  }
+
   private apply = async (): Promise<void> => {
-    if (!this.hass || !this.config || this.busy) return;
-    this.busy = true;
+    if (!this.hass || !this.config || this.busy !== undefined) return;
+    this.busy = "apply";
     this.error = undefined;
     try {
       const [domain, service] = splitAction(this.config.start_action);
@@ -108,13 +129,13 @@ export class TimedAwayCard extends LitElement {
     } catch (error) {
       this.error = error instanceof Error ? error.message : "Away mode could not be applied";
     } finally {
-      this.busy = false;
+      this.busy = undefined;
     }
   };
 
   private cancel = async (): Promise<void> => {
-    if (!this.hass || !this.config || this.busy) return;
-    this.busy = true;
+    if (!this.hass || !this.config || this.busy !== undefined) return;
+    this.busy = "cancel";
     this.error = undefined;
     try {
       const [domain, service] = splitAction(this.config.cancel_action);
@@ -122,7 +143,7 @@ export class TimedAwayCard extends LitElement {
     } catch (error) {
       this.error = error instanceof Error ? error.message : "Away mode could not be cancelled";
     } finally {
-      this.busy = false;
+      this.busy = undefined;
     }
   };
 
@@ -149,6 +170,9 @@ export class TimedAwayCard extends LitElement {
     button { min-height:40px; border:1px solid var(--divider-color,#444); border-radius:10px; padding:0 13px; color:inherit; background:transparent; font:inherit; font-weight:600; }
     .open,.apply { color:#151515; border-color:var(--primary-color,#ff9f32); background:var(--primary-color,#ff9f32); }
     .cancel { color:var(--warning-color,#ffb74d); }
+    .working { color:var(--secondary-text-color,#aaa); font-size:12px; font-weight:600; }
+    .summary[data-mode="fault"] .icon,.summary[data-mode="mismatch"] .icon { color:#fff; background:var(--error-color,#d93025); }
+    .summary[data-mode="applying-away"] .icon,.summary[data-mode="restoring"] .icon { color:var(--primary-text-color,#fff); background:var(--secondary-background-color,#454545); }
     .backdrop { position:fixed; z-index:999; inset:0; background:rgba(0,0,0,.56); }
     .sheet { position:fixed; z-index:1000; left:0; right:0; bottom:0; display:grid; gap:15px; max-width:520px; margin:auto; padding:8px 18px calc(18px + env(safe-area-inset-bottom)); border:1px solid var(--divider-color,#444); border-radius:22px 22px 0 0; color:var(--primary-text-color,#f5f5f5); background:var(--card-background-color,#1b1b1b); box-shadow:0 -12px 36px rgba(0,0,0,.35); }
     .grab { width:36px; height:4px; margin:0 auto; border-radius:3px; background:var(--divider-color,#555); }

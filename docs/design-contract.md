@@ -21,6 +21,10 @@ evidence proves a better one; do not append conversational history.
 - Actual, target, and heating-request signals share one time coordinate.
   Weather occupies an aligned secondary lane so its wider range cannot flatten
   indoor changes.
+- Target temperatures are held values: draw vertical held segments and
+  horizontal transitions, never diagonal interpolation. Heating-request draws
+  held on intervals and its direct label reports the latest held state in the
+  visible viewport, including an off transition.
 - Labels sit beside their latest valid values. Pointer/touch inspection gives
   exact values at one time. Do not reserve permanent space for a legend.
 - Missing data remains missing. Label precipitation as an estimate unless the
@@ -33,7 +37,12 @@ evidence proves a better one; do not append conversational history.
 - Present one temporary Away intent, not competing Away and Off modes.
 - Offer 1h, 4h, and 8h30 shortcuts plus a non-linear, approximate 30m–48h
   scrubber. Show both duration and end time before one Apply.
-- Active state shows the end time and one Cancel. Action failure leaves the
+- A configured backend mode entity, optionally through one attribute, is the
+  authority for Schedule, Applying away, Away, Restoring, and Fault. An idle
+  timer never proves Schedule. Contradictory, missing, or unknown mode/timer
+  combinations render as mismatch instead of optimistic success.
+- Away shows the timer-owned end time and one Cancel. Fault and mismatch offer
+  the same configured resume/cancel action. Action failure leaves the
   picker open and says that heating was not changed.
 - The card calls configured Home Assistant actions and displays configured
   state only. Backend automation owns authorization, safety setpoints, receiver
@@ -42,7 +51,8 @@ evidence proves a better one; do not append conversational history.
 ## Visual acceptance
 
 - The deterministic preview covers dark day history, light week history, the
-  complete duration picker, active/cancel, and action failure at 390 x 844.
+  complete duration picker, active/cancel, backend fault/recovery, and action
+  failure at 390 x 844.
 - Screenshots are CI/release artifacts with SHA-256 metadata, never Git blobs.
 - A preview proves layout and the frontend contract. Production acceptance still
   requires the real signed-in route, real entity state, and physical readback

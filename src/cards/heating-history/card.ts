@@ -6,6 +6,7 @@ import { registerCard, type HomeAssistant, type LovelaceCardEditor } from "../..
 import { localTimelineMarks } from "../../shared/timeline-layout";
 import { parseHistoryConfig, seriesId, type HeatingHistoryCardConfig, type HistorySeriesConfig } from "./config";
 import { fetchHistory } from "./ha-history";
+import { heldPointAt, heldStepPath, heldTrueIntervals } from "./geometry";
 
 const ELEMENT = "alx-heating-history-card";
 const WIDTH = 360;
@@ -244,7 +245,10 @@ export class HeatingHistoryCard extends LitElement {
     const xWeather = (value: number): number => WEATHER_LEFT + ((value - weatherMin) / Math.max(1, weatherMax - weatherMin)) * (WEATHER_RIGHT - WEATHER_LEFT);
     const series = pointSets.map((entry): SeriesGeometry => {
       const mapX = entry.series.kind === "outdoor_temperature" ? xWeather : xTemp;
-      return { ...entry, path: entry.numeric.map((point) => `${mapX(point.value)},${y(point.time)}`).join(" ") };
+      const path = entry.series.kind === "target_temperature"
+        ? heldStepPath(entry.numeric, mapX, y, range.end)
+        : entry.numeric.map((point) => `${mapX(point.value)},${y(point.time)}`).join(" ");
+      return { ...entry, path };
     });
     const geometry = { span, height, minimum, maximum, marks: localTimelineMarks(range, controller.scale), y, xTemp, xWeather, series };
     this.geometryCache = { revision: this.revision, scale: controller.scale, start: range.start, end: range.end, geometry };
@@ -283,37 +287,41 @@ export class HeatingHistoryCard extends LitElement {
             `);
           }
           if (series.kind === "heating_request") {
-            const visible = points.filter((point) => point.time >= visibleTop && point.time <= visibleBottom);
-            const active = visible.filter((point) => point.value === true);
-            const latest = active.at(-1) ?? visible.at(-1);
+            const active = heldTrueIntervals(points, visibleTop, visibleBottom);
+            const latest = heldPointAt(points, visibleBottom);
             if (!latest) return nothing;
             const placement = placeDirectLabel(
               MAIN_LEFT + 4,
-              y(latest.time),
-              active.length > 0 ? 55 : 67,
+              y(visibleBottom),
+              latest.value === true ? 55 : 67,
               12,
               { left: MAIN_LEFT, right: MAIN_RIGHT, top: labelTop, bottom: labelBottom },
               occupied,
             );
             return svg`
               <g data-kind="heating-request" stroke="${color}">
-                ${active.map((point) => svg`<line class="request" x1="${MAIN_LEFT - 10}" x2="${MAIN_LEFT - 3}" y1="${y(point.time)}" y2="${y(point.time)}"></line>`)}
+                ${active.map((interval) => svg`<line class="request" x1="${MAIN_LEFT - 6}" x2="${MAIN_LEFT - 6}" y1="${y(interval.start)}" y2="${y(interval.end)}"></line>`)}
               </g>
               <text data-label="heating-request" class="direct-label" fill="${color}" x="${placement.x}" y="${placement.baseline}">
-                ${active.length > 0 ? "Heat req." : "No heat req."}
+                ${latest.value === true ? "Heat req." : "No heat req."}
               </text>
             `;
           }
           const visible = numeric.filter((point) => point.time >= visibleTop && point.time <= visibleBottom);
           const mapX = series.kind === "outdoor_temperature" ? xWeather : xTemp;
-          const last = visible.at(-1);
+          const last = series.kind === "target_temperature"
+            ? heldPointAt(numeric, visibleBottom) as HistoryPoint & { value: number } | undefined
+            : visible.at(-1);
           if (!last) return nothing;
           const laneBounds = series.kind === "outdoor_temperature"
             ? { left: WEATHER_LEFT, right: WIDTH - 2, top: labelTop, bottom: labelBottom }
             : { left: MAIN_LEFT, right: MAIN_RIGHT, top: labelTop, bottom: labelBottom };
-          const placement = placeDirectLabel(mapX(last.value) + 4, y(last.time), Math.min(66, series.label.length * 7), 12, laneBounds, occupied);
+          const labelTime = series.kind === "target_temperature" ? visibleBottom : last.time;
+          const placement = placeDirectLabel(mapX(last.value) + 4, y(labelTime), Math.min(66, series.label.length * 7), 12, laneBounds, occupied);
           return svg`
-            <polyline data-kind="${series.kind}" class="series" stroke="${color}" points="${path}"></polyline>
+            ${series.kind === "target_temperature"
+              ? svg`<path data-kind="${series.kind}" class="series" stroke="${color}" d="${path}"></path>`
+              : svg`<polyline data-kind="${series.kind}" class="series" stroke="${color}" points="${path}"></polyline>`}
             <text data-label="${series.kind}" class="direct-label" fill="${color}" x="${placement.x}" y="${placement.baseline}">${series.label}</text>
           `;
         })}
@@ -348,7 +356,9 @@ export class HeatingHistoryCard extends LitElement {
   private renderInspector(controller?: ScrollHistoryController) {
     if (!controller || this.inspectingAt === undefined) return nothing;
     const values = this.timelineGeometry(controller).series.flatMap(({ series, points }) => {
-      const closest = closestPoint(points, this.inspectingAt!);
+      const closest = ["target_temperature", "heating_request"].includes(series.kind)
+        ? heldPointAt(points, this.inspectingAt!)
+        : closestPoint(points, this.inspectingAt!);
       if (!closest) return [];
       if (typeof closest.value === "boolean") return [`${series.label} ${closest.value ? "on" : "off"}`];
       if (series.kind === "precipitation_estimate") {

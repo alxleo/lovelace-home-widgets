@@ -5,6 +5,8 @@
   "sensor.example_outdoor_temperature",
   "sensor.example_precipitation_estimate",
   "sensor.example_heating_request",
+  "sensor.example_away_control",
+  "input_select.example_away_mode",
   "timer.example_timed_away",
   "script.example_apply_timed_away",
   "script.example_cancel_timed_away"

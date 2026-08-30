@@ -24,6 +24,13 @@ test("scenario: mobile day history is dense, direct-labelled and scrolls into th
   const timeRight = Math.max(...timeBoxes.map((label) => label!.x + label!.width));
   const requestBox = await card.locator('[data-kind="heating-request"]').boundingBox();
   expect(requestBox!.x).toBeGreaterThan(timeRight);
+  const targetPath = await card.locator('[data-kind="target_temperature"]').getAttribute("d");
+  expect(targetPath).toMatch(/V .* H /);
+  expect(targetPath).not.toContain("L");
+  for (const interval of await card.locator('[data-kind="heating-request"] .request').all()) {
+    expect(await interval.getAttribute("x1")).toBe(await interval.getAttribute("x2"));
+  }
+  await expect(card.locator('[data-label="heating-request"]')).toHaveText("No heat req.");
   await page.screenshot({ path: "artifacts/screenshots/history-day-now-dark.png" });
 
   await page.mouse.move(timelineBox!.x + timelineBox!.width * .55, timelineBox!.y + timelineBox!.height * .45);
@@ -95,6 +102,24 @@ test("scenario: timed away offers presets, an approximate scrubber, one apply an
   await page.screenshot({ path: "artifacts/screenshots/timed-away-active.png" });
   await card.getByRole("button", { name: "Cancel" }).click();
   await expect(card.getByRole("button", { name: "Set away" })).toBeVisible();
+
+  await page.evaluate(() => window.previewSetAwayState("Applying away", "active"));
+  await expect(card.getByText("Applying away and confirming heating")).toBeVisible();
+  await page.evaluate(() => window.previewSetAwayState("Restoring", "idle"));
+  await expect(card.getByText("Restoring heating schedule")).toBeVisible();
+  await page.evaluate(() => window.previewSetAwayState("Fault", "idle"));
+  await expect(card.getByRole("alert")).toContainText("Away control fault");
+  await page.screenshot({ path: "artifacts/screenshots/timed-away-fault.png" });
+  await card.getByRole("button", { name: "Resume schedule" }).click();
+  await expect(card.getByRole("button", { name: "Set away" })).toBeVisible();
+
+  await page.evaluate(() => window.previewSetAwayState("Mismatch", "idle"));
+  await expect(card.getByRole("alert")).toContainText("Heating state mismatch");
+  await expect(card.getByRole("button", { name: "Resume schedule" })).toBeVisible();
+  await page.evaluate(() => window.previewSetAwayState("Schedule", "active"));
+  await expect(card.getByRole("alert")).toContainText("Heating state mismatch");
+  await page.evaluate(() => window.previewSetAwayState("Away", "idle"));
+  await expect(card.getByRole("alert")).toContainText("Heating state mismatch");
 });
 
 test("scenario: a refused away action stays open and explains that heating was not changed", async ({ page }) => {
@@ -114,5 +139,6 @@ declare global {
   interface Window {
     previewCalls: Array<Record<string, unknown>>;
     previewFailNext: boolean;
+    previewSetAwayState: (mode: string, timerState?: string, finishesAt?: string) => void;
   }
 }
