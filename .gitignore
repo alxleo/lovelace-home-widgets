@@ -1,0 +1,8 @@
+node_modules/
+dist/*
+!dist/alx-home-widgets.js
+.cache/
+artifacts/
+playwright-report/
+test-results/
+.DS_Store

@@ -1,0 +1,46 @@
+{
+  "schema": "alx.source-lock.v1",
+  "sources": [
+    {
+      "id": "boilerplate-card",
+      "repository": "https://github.com/custom-cards/boilerplate-card.git",
+      "revision": "400e118f7add31f5727729f3e92f3314e43e74e4",
+      "paths": ["src/boilerplate-card.ts", "src/editor.ts", "rollup.config.js", ".github/workflows/release.yml", "hacs.json"],
+      "adopted": ["Lit custom elements", "getConfigElement and getStubConfig", "window.customCards registration", "single ESM release asset"],
+      "rejected": ["demo-only action surface", "large dependency set unrelated to these cards"]
+    },
+    {
+      "id": "bubble-card",
+      "repository": "https://github.com/Clooos/Bubble-Card.git",
+      "revision": "22f052b9d087abb36651a410814ee4c42298ff17",
+      "paths": ["src/cards", "src/components", "src/tools", "src/editor"],
+      "adopted": ["multiple cards in one bundle", "per-card editors and tests", "compact mobile controls"],
+      "rejected": ["monolithic dispatcher", "translated documentation and module ecosystem"]
+    },
+    {
+      "id": "button-card",
+      "repository": "https://github.com/custom-cards/button-card.git",
+      "revision": "dfa304f93ab73b41011b624960657c568672e9c9",
+      "paths": ["src", "test", ".github/workflows"],
+      "adopted": ["mature versioned releases", "local Home Assistant fixtures"],
+      "rejected": ["arbitrary JavaScript templates", "documentation-site complexity"]
+    },
+    {
+      "id": "apexcharts-card",
+      "repository": "https://github.com/RomRider/apexcharts-card.git",
+      "revision": "6d3f1e9843f2d58ff73098128e78be8f57a5272b",
+      "paths": ["src", "tests", "rollup.config.js"],
+      "adopted": ["typed chart configuration", "bounded history handling", "HA fixture-driven tests"],
+      "rejected": ["large chart dependency for a narrow vertical canvas"]
+    },
+    {
+      "id": "home-assistant-core-history",
+      "repository": "https://github.com/home-assistant/core.git",
+      "revision": "759e4658f40b3ccb671d418b8a0ed95224bf4561",
+      "clone_ref": "2026.8.3",
+      "paths": ["homeassistant/components/history/websocket_api.py", "homeassistant/generated/entity_platforms.py", "tests/components/history/test_websocket_api.py"],
+      "adopted": ["entity-keyed history result", "minimal s/a/lu state records", "inherit attributes when later records omit repeated a", "current entity-platform domains for privacy classification"],
+      "rejected": ["ad hoc REST history client", "assuming every minimal record repeats attributes"]
+    }
+  ]
+}
