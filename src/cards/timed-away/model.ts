@@ -6,8 +6,9 @@ export interface TimedAwayCardConfig {
   title: string;
   start_action: string;
   cancel_action: string;
-  mode_entity: string;
+  mode_entity?: string;
   mode_attribute?: string;
+  active_entity?: string;
   ends_at_entity?: string;
   ends_at_attribute?: string;
   duration_field: string;
@@ -40,7 +41,10 @@ export const parseTimedAwayConfig = (input: unknown): TimedAwayCardConfig => {
   const cancelAction = required(raw.cancel_action, "cancel_action");
   splitAction(startAction);
   splitAction(cancelAction);
-  const modeEntity = entity(raw.mode_entity, "mode_entity");
+  const modeEntity = raw.mode_entity === undefined ? undefined : entity(raw.mode_entity, "mode_entity");
+  const activeEntity = raw.active_entity === undefined ? undefined : entity(raw.active_entity, "active_entity");
+  if (!modeEntity && !activeEntity) throw new Error("mode_entity is required (or active_entity for v0.1.0 compatibility)");
+  if (raw.mode_attribute !== undefined && !modeEntity) throw new Error("mode_attribute requires mode_entity");
   const endsAtEntity = raw.ends_at_entity === undefined ? undefined : entity(raw.ends_at_entity, "ends_at_entity");
   if (raw.ends_at_attribute !== undefined && !endsAtEntity) throw new Error("ends_at_attribute requires ends_at_entity");
   const durationField = raw.duration_field === undefined ? "duration_minutes" : required(raw.duration_field, "duration_field");
@@ -52,6 +56,7 @@ export const parseTimedAwayConfig = (input: unknown): TimedAwayCardConfig => {
     cancel_action: cancelAction,
     mode_entity: modeEntity,
     mode_attribute: raw.mode_attribute === undefined ? undefined : required(raw.mode_attribute, "mode_attribute"),
+    active_entity: activeEntity,
     ends_at_entity: endsAtEntity,
     ends_at_attribute: raw.ends_at_attribute === undefined ? undefined : required(raw.ends_at_attribute, "ends_at_attribute"),
     duration_field: durationField,
@@ -120,11 +125,24 @@ export const authoritativeMode = (
   config: TimedAwayCardConfig,
   states: Record<string, HassState>,
 ): TimedAwayMode => {
-  const modeState = states[config.mode_entity];
-  const raw = config.mode_attribute ? modeState?.attributes[config.mode_attribute] : modeState?.state;
-  const mode = normalizeMode(raw);
+  let mode: TimedAwayMode;
+  if (config.mode_entity) {
+    const modeState = states[config.mode_entity];
+    const raw = config.mode_attribute ? modeState?.attributes[config.mode_attribute] : modeState?.state;
+    mode = normalizeMode(raw);
+  } else {
+    const legacyState = config.active_entity ? states[config.active_entity]?.state.trim().toLowerCase() : undefined;
+    if (legacyState && ["active", "on", "true", "1"].includes(legacyState)) mode = "away";
+    else if (legacyState && ["idle", "off", "false", "0"].includes(legacyState)) mode = "schedule";
+    else mode = "mismatch";
+  }
   const timerState = config.ends_at_entity ? states[config.ends_at_entity]?.state.toLowerCase() : undefined;
   if (config.ends_at_entity && mode === "schedule" && timerState !== "idle") return "mismatch";
   if (config.ends_at_entity && mode === "away" && timerState !== "active") return "mismatch";
+  if (mode === "away") {
+    const endState = config.ends_at_entity ? states[config.ends_at_entity] : undefined;
+    const endValue = config.ends_at_attribute ? endState?.attributes[config.ends_at_attribute] : endState?.state;
+    if (typeof endValue !== "string" || !Number.isFinite(Date.parse(endValue))) return "mismatch";
+  }
   return mode;
 };

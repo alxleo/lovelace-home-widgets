@@ -46,10 +46,7 @@ export class TimedAwayCard extends LitElement {
 
   protected render() {
     if (!this.config) return nothing;
-    const backendMode = this.hass ? authoritativeMode(this.config, this.hass.states) : "mismatch";
-    const mode: TimedAwayMode = this.busy === "apply"
-      ? "applying-away"
-      : this.busy === "cancel" ? "restoring" : backendMode;
+    const mode = this.hass ? authoritativeMode(this.config, this.hass.states) : "mismatch";
     const endState = this.config.ends_at_entity ? this.hass?.states[this.config.ends_at_entity] : undefined;
     const endsAt = this.config.ends_at_attribute
       ? endState?.attributes[this.config.ends_at_attribute]
@@ -111,8 +108,10 @@ export class TimedAwayCard extends LitElement {
       return html`<button class="open" @click=${() => { this.error = undefined; this.open = true; }}>Set away</button>`;
     }
     if (mode === "restoring") return html`<span class="working" aria-live="polite">Restoring…</span>`;
-    const label = mode === "away" ? "Cancel" : "Resume schedule";
-    return html`<button class="cancel" ?disabled=${this.busy !== undefined} @click=${this.cancel}>${label}</button>`;
+    const label = this.busy === "cancel"
+      ? mode === "away" ? "Cancelling…" : "Resuming…"
+      : mode === "away" ? "Cancel" : "Resume schedule";
+    return html`<button class="cancel" aria-busy=${String(this.busy === "cancel")} ?disabled=${this.busy !== undefined} @click=${this.cancel}>${label}</button>`;
   }
 
   private apply = async (): Promise<void> => {
@@ -188,6 +187,11 @@ export class TimedAwayCard extends LitElement {
     button:disabled { opacity:.55; }
     .error { padding:0 13px 12px; color:var(--error-color,#ff6659); font-size:12px; }
     .sheet .error { padding:0; text-align:center; }
+    @media (max-width:420px) {
+      .summary[data-mode="fault"],.summary[data-mode="mismatch"] { grid-template-columns:42px minmax(0,1fr); align-items:start; }
+      .summary[data-mode="fault"] .copy span,.summary[data-mode="mismatch"] .copy span { overflow:visible; white-space:normal; }
+      .summary[data-mode="fault"] .cancel,.summary[data-mode="mismatch"] .cancel { grid-column:2; width:100%; }
+    }
     @media (min-width:600px) { .sheet { bottom:24px; border-radius:22px; } }
   `;
 }

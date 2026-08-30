@@ -15,7 +15,7 @@ export interface TimeRange {
 
 export interface HistoryPoint {
   time: number;
-  value: number | boolean;
+  value: number | boolean | null;
 }
 
 export type HistoryBatch = Record<string, HistoryPoint[]>;

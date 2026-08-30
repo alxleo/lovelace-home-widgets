@@ -6,6 +6,8 @@ let timerState = "idle";
 let endTime = "unknown";
 window.previewCalls = [];
 window.previewFailNext = false;
+window.previewDeferNext = false;
+let deferredRequest;
 
 const wave = (time, base, amplitude, phase = 0) => base + Math.sin((time / 86_400_000) * Math.PI * 2 + phase) * amplitude;
 const statesFor = (entity, start, end) => {
@@ -17,8 +19,8 @@ const statesFor = (entity, start, end) => {
         s: "heat",
         a: {
           current_temperature: Number(wave(time, entity.endsWith("example_zone_b") ? 20.4 : 21.1, .9, entity.endsWith("example_zone_b") ? 1 : 0).toFixed(1)),
-          temperature: hour >= 7 && hour < 22 ? 21 : 18,
-          hvac_action: hour >= 6 && hour < 9 ? "heating" : "idle"
+          temperature: hour === 12 ? "unknown" : hour >= 7 && hour < 22 ? 21 : 18,
+          hvac_action: hour === 9 ? "unavailable" : hour >= 6 && hour < 9 ? "heating" : "idle"
         },
         lu: time / 1000
       });
@@ -49,6 +51,14 @@ const makeHass = () => ({
   },
   async callService(domain, service, data = {}) {
     window.previewCalls.push({ domain, service, data });
+    if (window.previewDeferNext) {
+      window.previewDeferNext = false;
+      try {
+        await new Promise((resolve, reject) => { deferredRequest = { resolve, reject }; });
+      } finally {
+        deferredRequest = undefined;
+      }
+    }
     if (window.previewFailNext) {
       window.previewFailNext = false;
       throw new Error("Backend refused the action; heating was not changed");
@@ -99,4 +109,10 @@ window.previewSetAwayState = (mode, nextTimerState = "idle", finishesAt = "unkno
   timerState = nextTimerState;
   endTime = finishesAt;
   away.hass = makeHass();
+};
+
+window.previewFinishDeferred = (reject = false) => {
+  if (!deferredRequest) throw new Error("No deferred preview action");
+  if (reject) deferredRequest.reject(new Error("Backend rejected the resume request; heating was not changed"));
+  else deferredRequest.resolve();
 };

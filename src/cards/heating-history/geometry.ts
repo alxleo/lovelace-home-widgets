@@ -11,21 +11,35 @@ const sorted = (points: HistoryPoint[]): HistoryPoint[] =>
 export const heldPointAt = (points: HistoryPoint[], time: number): HistoryPoint | undefined =>
   sorted(points).findLast((point) => point.time <= time);
 
-export const heldStepPath = (
-  points: Array<HistoryPoint & { value: number }>,
+export const heldStepPaths = (
+  points: HistoryPoint[],
   mapX: (value: number) => number,
   mapY: (time: number) => number,
   end: number,
-): string => {
-  const ordered = sorted(points) as Array<HistoryPoint & { value: number }>;
-  const first = ordered[0];
-  if (!first) return "";
-  const commands = [`M ${mapX(first.value)},${mapY(first.time)}`];
-  for (const point of ordered.slice(1)) {
-    commands.push(`V ${mapY(point.time)}`, `H ${mapX(point.value)}`);
+): string[] => {
+  const ordered = sorted(points);
+  const paths: string[] = [];
+  let commands: string[] = [];
+  let lastNumericTime: number | undefined;
+  for (const point of ordered) {
+    if (typeof point.value === "number") {
+      if (commands.length === 0) commands = [`M ${mapX(point.value)},${mapY(point.time)}`];
+      else commands.push(`V ${mapY(point.time)}`, `H ${mapX(point.value)}`);
+      lastNumericTime = point.time;
+      continue;
+    }
+    if (commands.length > 0) {
+      if (lastNumericTime !== undefined && point.time > lastNumericTime) commands.push(`V ${mapY(point.time)}`);
+      paths.push(commands.join(" "));
+      commands = [];
+      lastNumericTime = undefined;
+    }
   }
-  if (end > ordered.at(-1)!.time) commands.push(`V ${mapY(end)}`);
-  return commands.join(" ");
+  if (commands.length > 0) {
+    if (lastNumericTime !== undefined && end > lastNumericTime) commands.push(`V ${mapY(end)}`);
+    paths.push(commands.join(" "));
+  }
+  return paths;
 };
 
 export const heldTrueIntervals = (

@@ -5,7 +5,7 @@ import { fetchHistory } from "../src/cards/heating-history/ha-history";
 import { normalizeHistoryConfig, parseHistoryConfig, seriesId } from "../src/cards/heating-history/config";
 import type { HomeAssistant } from "../src/shared/home-assistant";
 import { localTimelineMarks } from "../src/shared/timeline-layout";
-import { heldPointAt, heldStepPath, heldTrueIntervals } from "../src/cards/heating-history/geometry";
+import { heldPointAt, heldStepPaths, heldTrueIntervals } from "../src/cards/heating-history/geometry";
 
 const NOW = Date.parse("2026-08-30T14:00:00Z");
 
@@ -89,8 +89,21 @@ describe("heating history", () => {
       { time: 10, value: 21 },
       { time: 20, value: 19 },
     ];
-    expect(heldStepPath(target, (value) => value, (time) => time, 30))
-      .toBe("M 18,0 V 10 H 21 V 20 H 19 V 30");
+    expect(heldStepPaths(target, (value) => value, (time) => time, 30))
+      .toEqual(["M 18,0 V 10 H 21 V 20 H 19 V 30"]);
+
+    const targetWithGap = [
+      { time: 0, value: 18 },
+      { time: 10, value: 21 },
+      { time: 15, value: null },
+      { time: 20, value: 19 },
+      { time: 25, value: null },
+    ];
+    expect(heldStepPaths(targetWithGap, (value) => value, (time) => time, 30)).toEqual([
+      "M 18,0 V 10 H 21 V 15",
+      "M 19,20 V 25",
+    ]);
+    expect(heldPointAt(targetWithGap, 30)?.value).toBeNull();
 
     const request = [
       { time: 0, value: false },
@@ -101,6 +114,9 @@ describe("heating history", () => {
     expect(heldPointAt(request, 17)?.value).toBe(true);
     expect(heldPointAt(request, 25)?.value).toBe(false);
     expect(heldTrueIntervals([{ time: 0, value: true }], 5, 25)).toEqual([{ start: 5, end: 25 }]);
+    const requestWithGap = [{ time: 0, value: false }, { time: 8, value: true }, { time: 12, value: null }];
+    expect(heldTrueIntervals(requestWithGap, 5, 25)).toEqual([{ start: 8, end: 12 }]);
+    expect(heldPointAt(requestWithGap, 25)?.value).toBeNull();
   });
 
   it("scenario: weather and climate history use authenticated HA commands without leaking tokens", async () => {
@@ -152,7 +168,7 @@ describe("heating history", () => {
       ],
     }) as T;
     const requestResult = await fetchHistory(hass, heatingRequest, { start: NOW - DAY_MS, end: NOW }, new AbortController().signal);
-    expect(Object.values(requestResult).flat().map((point) => point.value)).toEqual([false, true]);
+    expect(Object.values(requestResult).flat().map((point) => point.value)).toEqual([null, false, true]);
 
     const normalized = normalizeHistoryConfig({
       type: "custom:alx-heating-history-card",
