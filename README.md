@@ -3,13 +3,18 @@
 Mobile-first Home Assistant dashboard cards distributed as one HACS Dashboard
 plugin.
 
-![Fictional mobile heating-history preview](https://github.com/alxleo/lovelace-home-widgets/releases/download/v0.1.0-rc.2/history-day-now-dark.png)
+![Fictional mobile heating-history preview](https://github.com/alxleo/lovelace-home-widgets/releases/download/v0.1.0/history-day-now-dark.png)
 
 ## Install
 
-No stable install target exists yet. The planned `v0.1.0-rc.2` is inert
-frontend preview evidence, not a production install target. For evaluation,
-run `npm run preview` locally and open `http://127.0.0.1:4173/preview/`.
+Add `https://github.com/alxleo/lovelace-home-widgets` as a HACS custom
+repository in the Dashboard category, then install **ALX Home Widgets**. Pin
+`v0.1.0` when reproducible installations are required.
+
+The first stable release was promoted only after the consuming Home Assistant
+deployment proved the timed-away start/cancel journey and physical receiver
+readback. For local evaluation, run `npm run preview` and open
+`http://127.0.0.1:4173/preview/`.
 
 The bundle registers:
 
