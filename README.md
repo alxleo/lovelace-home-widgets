@@ -22,6 +22,8 @@ The bundle registers:
   demand, and weather history.
 - `custom:alx-timed-away-card` — a fast, explicit temporary heating-away
   control.
+- `custom:alx-pc-power-card` — wake a PC with a magic packet and shut it down
+  now or after a configurable delay, with a live countdown and one-cancel abort.
 
 See [`examples/cards.yaml`](examples/cards.yaml) for fictional configuration
 and [`docs/design-contract.md`](docs/design-contract.md) for the stable UX

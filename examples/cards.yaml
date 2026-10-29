@@ -31,3 +31,8 @@ cards:
     ends_at_entity: timer.example_timed_away
     ends_at_attribute: finishes_at
     duration_field: duration_minutes
+  - type: custom:alx-pc-power-card
+    title: Desk PC
+    power_entity: switch.example_pc
+    timer_entity: timer.example_pc_shutdown
+    presets: [15, 30, 60]

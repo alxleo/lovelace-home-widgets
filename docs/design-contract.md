@@ -57,11 +57,27 @@ evidence proves a better one; do not append conversational history.
   state only. Backend automation owns authorization, safety setpoints, receiver
   readback, expiry, restart recovery, rollback, and schedule restoration.
 
+## PC power
+
+- One dense row reports the power switch and its next useful action: wake from
+  off, delay while on. The switch state is the only authority for on and off.
+- Instant power is one explicit toggle; a delayed shutdown is a separate,
+  deliberate sheet offering configured presets and a non-linear 5m–4h scrubber
+  that shows both duration and shutdown time before one Start.
+- A configured timer entity is the countdown authority. An active timer shows
+  its own remaining time and one Cancel; a paused timer or an active countdown
+  on an off PC renders as mismatch with one Cancel, never as optimistic
+  success. A missing or unavailable optional timer degrades to a plain toggle.
+- The card calls the switch's turn_on/turn_off and timer start/cancel only.
+  Backend automation owns the shutdown press at expiry, restart recovery, and
+  cancellation when the PC drops off the network.
+
 ## Visual acceptance
 
 - The deterministic preview covers dark day history, light week history, the
   complete duration picker, active/cancel, backend fault/recovery, and action
-  failure at 390 x 844.
+  failure at 390 x 844. It also covers the PC power picker, live countdown,
+  mismatch, and refused actions.
 - Screenshots are CI/release artifacts with SHA-256 metadata, never Git blobs.
 - A preview proves layout and the frontend contract. Production acceptance still
   requires the real signed-in route, real entity state, and physical readback

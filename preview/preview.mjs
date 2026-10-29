@@ -40,7 +40,9 @@ const makeHass = () => ({
     "sensor.example_outdoor_temperature": { entity_id: "sensor.example_outdoor_temperature", state: "13.2", attributes: {} },
     "sensor.example_precipitation_estimate": { entity_id: "sensor.example_precipitation_estimate", state: "0", attributes: {} },
     "sensor.example_away_control": { entity_id: "sensor.example_away_control", state: "backend state", attributes: { mode: awayMode } },
-    "timer.example_timed_away": { entity_id: "timer.example_timed_away", state: timerState, attributes: { finishes_at: endTime } }
+    "timer.example_timed_away": { entity_id: "timer.example_timed_away", state: timerState, attributes: { finishes_at: endTime } },
+    "switch.example_pc": { entity_id: "switch.example_pc", state: pcPower, attributes: {} },
+    "timer.example_pc_shutdown": { entity_id: "timer.example_pc_shutdown", state: pcTimer, attributes: { remaining: pcRemaining } }
   },
   config: { unit_system: { temperature: "°C" } },
   async callWS(command) {
@@ -61,15 +63,31 @@ const makeHass = () => ({
     }
     if (window.previewFailNext) {
       window.previewFailNext = false;
-      throw new Error("Backend refused the action; heating was not changed");
+      const reason = domain === "switch" ? "the power switch did not respond"
+        : domain === "timer" ? "no countdown was started"
+        : "heating was not changed";
+      throw new Error(`Backend refused the action; ${reason}`);
     }
     awayMode = service === "example_apply_timed_away" ? "Away" : "Schedule";
     timerState = awayMode === "Away" ? "active" : "idle";
     endTime = awayMode === "Away" ? new Date(NOW + Number(data.duration_minutes ?? 0) * 60_000).toISOString() : "unknown";
+    if (domain === "switch" && data.entity_id === "switch.example_pc") {
+      pcPower = service === "turn_on" ? "on" : "off";
+      if (pcPower === "off" && pcTimer === "active") { pcTimer = "idle"; pcRemaining = "unknown"; }
+    }
+    if (domain === "timer" && data.entity_id === "timer.example_pc_shutdown") {
+      pcTimer = service === "start" ? "active" : "idle";
+      pcRemaining = service === "start" ? formatRemaining(Number(data.duration ?? 0)) : "unknown";
+    }
     const next = makeHass();
-    document.querySelectorAll("alx-heating-history-card,alx-timed-away-card").forEach((card) => { card.hass = next; });
+    document.querySelectorAll("alx-heating-history-card,alx-timed-away-card,alx-pc-power-card").forEach((card) => { card.hass = next; });
   }
 });
+
+const formatRemaining = (seconds) => {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
+};
 
 const history = document.createElement("alx-heating-history-card");
 history.setConfig({
@@ -98,10 +116,24 @@ away.setConfig({
   ends_at_attribute: "finishes_at"
 });
 
+let pcPower = "off";
+let pcTimer = "idle";
+let pcRemaining = "unknown";
+
+const pc = document.createElement("alx-pc-power-card");
+pc.setConfig({
+  type: "custom:alx-pc-power-card",
+  title: "Desk PC",
+  power_entity: "switch.example_pc",
+  timer_entity: "timer.example_pc_shutdown",
+  presets: [15, 30, 60]
+});
+
 const hass = makeHass();
 history.hass = hass;
 away.hass = hass;
-document.querySelector("#cards").append(history, away);
+pc.hass = hass;
+document.querySelector("#cards").append(history, away, pc);
 document.querySelector("#theme").addEventListener("click", () => document.documentElement.classList.toggle("light"));
 
 window.previewSetAwayState = (mode, nextTimerState = "idle", finishesAt = "unknown") => {
@@ -109,6 +141,13 @@ window.previewSetAwayState = (mode, nextTimerState = "idle", finishesAt = "unkno
   timerState = nextTimerState;
   endTime = finishesAt;
   away.hass = makeHass();
+};
+
+window.previewSetPcState = (power, timer = "idle", remaining = "unknown") => {
+  pcPower = power;
+  pcTimer = timer;
+  pcRemaining = remaining;
+  pc.hass = makeHass();
 };
 
 window.previewFinishDeferred = (reject = false) => {

@@ -9,5 +9,7 @@
   "input_select.example_away_mode",
   "timer.example_timed_away",
   "script.example_apply_timed_away",
-  "script.example_cancel_timed_away"
+  "script.example_cancel_timed_away",
+  "switch.example_pc",
+  "timer.example_pc_shutdown"
 ]

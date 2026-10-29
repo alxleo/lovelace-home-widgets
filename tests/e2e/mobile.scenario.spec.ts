@@ -158,6 +158,62 @@ test("scenario: a refused away action stays open and explains that heating was n
   await page.screenshot({ path: "artifacts/screenshots/timed-away-failure.png" });
 });
 
+test("scenario: pc power toggles, delays shutdown, shows the countdown and cancels it", async ({ page }) => {
+  await page.goto("/preview/");
+  const card = page.locator("alx-pc-power-card");
+  await card.scrollIntoViewIfNeeded();
+  await expect(card.locator(".summary")).toHaveAttribute("data-mode", "off");
+  await card.getByRole("button", { name: "Power on" }).click();
+  expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({
+    domain: "switch", service: "turn_on", data: { entity_id: "switch.example_pc" },
+  });
+  await expect(card.locator(".summary")).toHaveAttribute("data-mode", "on");
+
+  await card.getByRole("button", { name: "Delay…" }).click();
+  const dialog = card.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "1h" })).toBeVisible();
+  await page.screenshot({ path: "artifacts/screenshots/pc-power-picker.png" });
+  await dialog.getByRole("button", { name: "30m" }).click();
+  await dialog.getByRole("button", { name: "Start countdown" }).click();
+  expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({
+    domain: "timer", service: "start", data: { entity_id: "timer.example_pc_shutdown", duration: 1800 },
+  });
+  await expect(card.locator(".summary")).toHaveAttribute("data-mode", "countdown");
+  await expect(card.getByText("Shutting down in 30m 0s")).toBeVisible();
+  await card.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "artifacts/screenshots/pc-power-countdown.png" });
+  await card.getByRole("button", { name: "Cancel" }).click();
+  await expect(card.locator(".summary")).toHaveAttribute("data-mode", "on");
+
+  await page.evaluate(() => window.previewSetPcState("off", "active", "00:29:59"));
+  await expect(card.locator('.copy [role="alert"]')).toContainText("Countdown pending while the PC is off");
+  await expect(card.getByRole("button", { name: "Cancel timer" })).toBeVisible();
+  await page.evaluate(() => window.previewSetPcState("unavailable"));
+  await expect(card.getByText("Power switch is not answering")).toBeVisible();
+  await page.evaluate(() => window.previewSetPcState("on"));
+});
+
+test("scenario: a refused shutdown delay keeps the sheet open and says no countdown started", async ({ page }) => {
+  await page.goto("/preview/");
+  const card = page.locator("alx-pc-power-card");
+  await card.scrollIntoViewIfNeeded();
+  await page.evaluate(() => { window.previewFailNext = true; });
+  await card.getByRole("button", { name: "Power on" }).click();
+  await expect(card.locator(".summary")).toHaveAttribute("data-mode", "off");
+  await expect(card.locator(".error")).toContainText("the power switch did not respond");
+  await card.getByRole("button", { name: "Power on" }).click();
+  await expect(card.locator(".summary")).toHaveAttribute("data-mode", "on");
+  await page.evaluate(() => { window.previewFailNext = true; });
+  await card.getByRole("button", { name: "Delay…" }).click();
+  const dialog = card.getByRole("dialog");
+  await dialog.getByRole("button", { name: "15m" }).click();
+  await dialog.getByRole("button", { name: "Start countdown" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("no countdown was started");
+  await expect(dialog).toBeVisible();
+  await page.screenshot({ path: "artifacts/screenshots/pc-power-failure.png" });
+});
+
 declare global {
   interface Window {
     previewCalls: Array<Record<string, unknown>>;
@@ -165,5 +221,6 @@ declare global {
     previewDeferNext: boolean;
     previewSetAwayState: (mode: string, timerState?: string, finishesAt?: string) => void;
     previewFinishDeferred: (reject?: boolean) => void;
+    previewSetPcState: (power: string, timer?: string, remaining?: string) => void;
   }
 }
