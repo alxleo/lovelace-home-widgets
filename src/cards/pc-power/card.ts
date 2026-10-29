@@ -9,6 +9,7 @@ import {
   pcPowerStatus,
   remainingLabel,
   sliderToMinutes,
+  usageLabel,
   type PcPowerCardConfig,
   type PcPowerStatus,
 } from "./model";
@@ -28,7 +29,9 @@ export class PcPowerCard extends LitElement {
       type: "custom:alx-pc-power-card",
       title: "PC",
       power_entity: "switch.example_pc",
+      state_entity: "binary_sensor.example_pc_connected",
       timer_entity: "timer.example_pc_shutdown",
+      usage_entity: "sensor.example_pc_time_on_today",
       presets: [...DEFAULT_PRESETS],
     };
   }
@@ -44,16 +47,17 @@ export class PcPowerCard extends LitElement {
 
   protected render() {
     if (!this.config) return nothing;
-    const { status, remaining } = this.hass ? pcPowerStatus(this.config, this.hass.states) : { status: "unavailable" as PcPowerStatus, remaining: undefined };
+    const info = this.hass ? pcPowerStatus(this.config, this.hass.states) : { status: "unavailable" as PcPowerStatus, remaining: undefined };
+    const usage = this.hass ? usageLabel(this.config, this.hass.states) : undefined;
     return html`
       <ha-card>
-        <div class="summary" data-mode=${status}>
+        <div class="summary" data-mode=${info.status}>
           <div class="icon" aria-hidden="true">⏻</div>
           <div class="copy">
             <h2>${this.config.title}</h2>
-            <span role=${status === "mismatch" ? "alert" : nothing}>${this.statusText(status, remaining)}</span>
+            <span role=${info.status === "mismatch" ? "alert" : nothing}>${this.statusText(info.status, info.remaining, usage)}</span>
           </div>
-          ${this.renderSummaryActions(status)}
+          ${this.renderSummaryActions(info.status)}
         </div>
         ${this.error && !this.open ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       </ha-card>
@@ -80,14 +84,14 @@ export class PcPowerCard extends LitElement {
     `;
   }
 
-  private statusText(status: PcPowerStatus, remaining?: string): string {
-    if (status === "unavailable") return "Power switch is not answering";
-    if (status === "off") return "Off · wake sends a magic packet";
+  private statusText(status: PcPowerStatus, remaining?: string, usage?: string): string {
+    if (status === "unavailable") return "Power state is not answering";
+    if (status === "off") return usage ? `Off · on ${usage}` : "Off · wake sends a magic packet";
     if (status === "countdown") {
       return remaining ? `Shutting down in ${remainingLabel(remaining)}` : "Shutting down on schedule";
     }
     if (status === "mismatch") return "Countdown pending while the PC is off";
-    return "On";
+    return usage ? `On · ${usage}` : "On";
   }
 
   private renderSheet() {

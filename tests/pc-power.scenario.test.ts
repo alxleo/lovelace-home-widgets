@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { durationLabel, endLabel, formatSeconds, minutesToSlider, parsePcPowerConfig, pcPowerStatus, remainingLabel, sliderToMinutes } from "../src/cards/pc-power/model";
+import { durationLabel, endLabel, formatSeconds, minutesToSlider, parsePcPowerConfig, pcPowerStatus, remainingLabel, sliderToMinutes, usageLabel } from "../src/cards/pc-power/model";
 import type { HassState } from "../src/shared/home-assistant";
 
 const state = (entity: string, value: string, attributes: Record<string, unknown> = {}): Record<string, HassState> => ({
@@ -66,5 +66,37 @@ describe("pc power", () => {
 
     const plainToggle = parsePcPowerConfig({ type: "custom:alx-pc-power-card", power_entity: "switch.example_pc" });
     expect(pcPowerStatus(plainToggle, state("switch.example_pc", "on"))).toEqual({ status: "on" });
+  });
+
+  it("scenario: a separate connectivity sensor is the power authority over the optimistic switch", () => {
+    const config = parsePcPowerConfig({
+      type: "custom:alx-pc-power-card",
+      power_entity: "switch.example_pc",
+      state_entity: "binary_sensor.example_pc_connected",
+      usage_entity: "sensor.example_pc_time_on_today",
+    });
+    const optimisticSwitchOn = {
+      ...state("switch.example_pc", "on"),
+      ...state("binary_sensor.example_pc_connected", "off"),
+    };
+    expect(pcPowerStatus(config, optimisticSwitchOn)).toEqual({ status: "off" });
+
+    const sensorUnavailable = {
+      ...state("switch.example_pc", "on"),
+      ...state("binary_sensor.example_pc_connected", "unavailable"),
+    };
+    expect(pcPowerStatus(config, sensorUnavailable)).toEqual({ status: "unavailable" });
+
+    const countdownFromSensor = {
+      ...state("switch.example_pc", "off"),
+      ...state("binary_sensor.example_pc_connected", "on"),
+      ...state("timer.example_pc_shutdown", "active", { remaining: "00:04:00" }),
+    };
+    expect(pcPowerStatus(config, countdownFromSensor)).toEqual({ status: "countdown", remaining: "00:04:00" });
+
+    expect(usageLabel(config, { ...state("sensor.example_pc_time_on_today", "2.44") })).toBe("2.4h today");
+    expect(usageLabel(config, { ...state("sensor.example_pc_time_on_today", "unavailable") })).toBeUndefined();
+    expect(usageLabel(config, { ...state("sensor.example_pc_time_on_today", "unknown") })).toBeUndefined();
+    expect(usageLabel({ ...config, usage_entity: undefined }, {})).toBeUndefined();
   });
 });

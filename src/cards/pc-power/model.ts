@@ -4,7 +4,9 @@ export interface PcPowerCardConfig {
   type: "custom:alx-pc-power-card";
   title: string;
   power_entity: string;
+  state_entity?: string;
   timer_entity?: string;
+  usage_entity?: string;
   presets?: number[];
 }
 
@@ -24,7 +26,9 @@ export const parsePcPowerConfig = (input: unknown): PcPowerCardConfig => {
   const raw = input as Record<string, unknown>;
   if (raw.type !== "custom:alx-pc-power-card") throw new Error("type must be custom:alx-pc-power-card");
   const powerEntity = entity(raw.power_entity, "power_entity");
+  const stateEntity = raw.state_entity === undefined ? undefined : entity(raw.state_entity, "state_entity");
   const timerEntity = raw.timer_entity === undefined ? undefined : entity(raw.timer_entity, "timer_entity");
+  const usageEntity = raw.usage_entity === undefined ? undefined : entity(raw.usage_entity, "usage_entity");
   let presets: number[] | undefined;
   if (raw.presets !== undefined) {
     if (!Array.isArray(raw.presets) || raw.presets.length === 0 || raw.presets.length > 6) {
@@ -41,7 +45,9 @@ export const parsePcPowerConfig = (input: unknown): PcPowerCardConfig => {
     type: "custom:alx-pc-power-card",
     title: raw.title === undefined ? "PC" : required(raw.title, "title"),
     power_entity: powerEntity,
+    state_entity: stateEntity,
     timer_entity: timerEntity,
+    usage_entity: usageEntity,
     presets,
   };
 };
@@ -57,7 +63,8 @@ export const pcPowerStatus = (
   config: PcPowerCardConfig,
   states: Record<string, HassState>,
 ): PcPowerStatusInfo => {
-  const powerState = states[config.power_entity]?.state?.trim().toLowerCase();
+  const authority = config.state_entity ?? config.power_entity;
+  const powerState = states[authority]?.state?.trim().toLowerCase();
   if (!powerState || ["unknown", "unavailable"].includes(powerState)) return { status: "unavailable" };
   const timerState = config.timer_entity
     ? states[config.timer_entity]?.state?.trim().toLowerCase()
@@ -70,6 +77,17 @@ export const pcPowerStatus = (
   if (timerKnown && timerState === "paused") return { status: "mismatch" };
   if (powerState === "on") return { status: "on" };
   return { status: "off" };
+};
+
+export const usageLabel = (
+  config: PcPowerCardConfig,
+  states: Record<string, HassState>,
+): string | undefined => {
+  if (!config.usage_entity) return undefined;
+  const state = states[config.usage_entity];
+  const hours = Number(state?.state);
+  if (!state || !Number.isFinite(hours) || ["unknown", "unavailable"].includes(state.state)) return undefined;
+  return `${hours.toFixed(1)}h today`;
 };
 
 const remainingOf = (config: PcPowerCardConfig, states: Record<string, HassState>): string | undefined => {

@@ -3,11 +3,13 @@ import { customElement, property, state } from "lit/decorators.js";
 import { fireConfigChanged, type HomeAssistant } from "../../shared/home-assistant";
 import { parsePcPowerConfig, type PcPowerCardConfig } from "./model";
 
-type EditableKey = "title" | "power_entity" | "timer_entity" | "presets";
+type EditableKey = "title" | "power_entity" | "state_entity" | "timer_entity" | "usage_entity" | "presets";
 const FIELDS: Array<[EditableKey, string]> = [
   ["title", "Title"],
-  ["power_entity", "Power switch entity"],
+  ["power_entity", "Power switch entity (receives turn on/off)"],
+  ["state_entity", "Power state entity (optional; defaults to the switch)"],
   ["timer_entity", "Shutdown timer entity (optional)"],
+  ["usage_entity", "Time-on sensor entity (optional)"],
   ["presets", "Delay presets in minutes, comma separated (optional)"],
 ];
 

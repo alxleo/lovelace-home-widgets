@@ -190,7 +190,7 @@ test("scenario: pc power toggles, delays shutdown, shows the countdown and cance
   await expect(card.locator('.copy [role="alert"]')).toContainText("Countdown pending while the PC is off");
   await expect(card.getByRole("button", { name: "Cancel timer" })).toBeVisible();
   await page.evaluate(() => window.previewSetPcState("unavailable"));
-  await expect(card.getByText("Power switch is not answering")).toBeVisible();
+  await expect(card.getByText("Power state is not answering")).toBeVisible();
   await page.evaluate(() => window.previewSetPcState("on"));
 });
 

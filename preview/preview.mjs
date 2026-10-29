@@ -42,6 +42,8 @@ const makeHass = () => ({
     "sensor.example_away_control": { entity_id: "sensor.example_away_control", state: "backend state", attributes: { mode: awayMode } },
     "timer.example_timed_away": { entity_id: "timer.example_timed_away", state: timerState, attributes: { finishes_at: endTime } },
     "switch.example_pc": { entity_id: "switch.example_pc", state: pcPower, attributes: {} },
+    "binary_sensor.example_pc_connected": { entity_id: "binary_sensor.example_pc_connected", state: pcConnected, attributes: {} },
+    "sensor.example_pc_time_on_today": { entity_id: "sensor.example_pc_time_on_today", state: pcUsage, attributes: { unit_of_measurement: "h" } },
     "timer.example_pc_shutdown": { entity_id: "timer.example_pc_shutdown", state: pcTimer, attributes: { remaining: pcRemaining } }
   },
   config: { unit_system: { temperature: "°C" } },
@@ -117,6 +119,8 @@ away.setConfig({
 });
 
 let pcPower = "off";
+let pcConnected = "off";
+let pcUsage = "2.4";
 let pcTimer = "idle";
 let pcRemaining = "unknown";
 

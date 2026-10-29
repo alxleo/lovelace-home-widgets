@@ -11,5 +11,7 @@
   "script.example_apply_timed_away",
   "script.example_cancel_timed_away",
   "switch.example_pc",
-  "timer.example_pc_shutdown"
+  "timer.example_pc_shutdown",
+  "binary_sensor.example_pc_connected",
+  "sensor.example_pc_time_on_today"
 ]
