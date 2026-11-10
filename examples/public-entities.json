@@ -13,5 +13,19 @@
   "switch.example_pc",
   "timer.example_pc_shutdown",
   "binary_sensor.example_pc_connected",
-  "sensor.example_pc_time_on_today"
+  "sensor.example_pc_time_on_today",
+  "light.example_room",
+  "light.example_ceiling",
+  "light.example_tower",
+  "light.example_strip",
+  "light.example_kitchen",
+  "light.example_bedroom",
+  "light.example_kids",
+  "light.example_study",
+  "light.example_offline",
+  "light.example_fixed",
+  "light.example_white",
+  "light.example_plug",
+  "select.example_room_scene",
+  "select.example_bedroom_scene"
 ]

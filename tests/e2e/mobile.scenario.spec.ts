@@ -19,7 +19,9 @@ test("scenario: room journals show current and target, inspect without reflow an
   await expect(card.locator(".room").first()).toContainText("Set");
   await expect.poll(() => card.locator(".heat-band").count()).toBeGreaterThan(0);
   expect(Number(await card.locator(".heat-band").first().getAttribute("height"))).toBeGreaterThan(100);
-  expect(await card.locator(".target-line").first().getAttribute("d")).toMatch(/H .* V /);
+  // The first valid segment may end at the noon unknown gap before a transition.
+  const targetPaths = await card.locator(".target-line").evaluateAll((paths) => paths.map((path) => path.getAttribute("d") ?? ""));
+  expect(targetPaths.some((path) => /H .* V /.test(path))).toBe(true);
   await page.screenshot({ path: "artifacts/screenshots/history-day-now-dark.png" });
   const chart = card.locator(".chart").first();
   const before = await card.boundingBox();
@@ -308,6 +310,127 @@ test("scenario: a refused shutdown delay keeps the sheet open and says no countd
   await page.screenshot({ path: "artifacts/screenshots/pc-power-failure.png" });
 });
 
+test("scenario: light brightness is accessible by touch and keyboard without losing identity or collapsing its room", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/preview/?view=lights");
+  await page.locator("#theme").click();
+  const ceiling = page.locator('[data-fixture-entity="light.example_ceiling"]');
+  const slider = ceiling.getByRole("slider", { name: "Ceiling brightness", exact: true });
+  await expect(slider).toBeVisible();
+  const stableHeight = (await ceiling.boundingBox())!.height;
+  const bounds = (await slider.boundingBox())!;
+  const callsBefore = await page.evaluate(() => window.previewCalls.length);
+  await page.mouse.move(bounds.x + bounds.width * .5, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width * .75, bounds.y + bounds.height / 2);
+  expect(await page.evaluate(() => window.previewCalls.length)).toBe(callsBefore);
+  expect((await ceiling.boundingBox())!.height).toBeCloseTo(stableHeight, 1);
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => window.previewCalls.length)).toBe(callsBefore + 1);
+  await page.touchscreen.tap(bounds.x + bounds.width * .8, bounds.y + bounds.height / 2);
+  await expect.poll(async () => (await page.evaluate(() => window.previewCalls.at(-1)))?.service).toBe("turn_on");
+  await expect(ceiling.locator(".identity")).toContainText("Ceiling");
+  await slider.focus();
+  const before = Number(await slider.inputValue());
+  await slider.press("ArrowLeft");
+  await expect.poll(async () => Number(await slider.inputValue())).toBeLessThan(before);
+  await ceiling.getByRole("button", { name: "Adjust Ceiling", exact: true }).click();
+  await expect(ceiling.getByRole("slider", { name: "Ceiling white tone", exact: true })).toBeVisible();
+  await expect(ceiling.locator(".identity")).toContainText("Ceiling");
+  await expect(page.getByRole("button", { name: "Hide Living lights", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await page.screenshot({ path: "artifacts/screenshots/lights-inline-white-light.png" });
+  expect(errors).toEqual([]);
+});
+
+test("scenario: inline white and colour controls respect native bounds and group-only scenes", async ({ page }) => {
+  await page.goto("/preview/?view=lights");
+  await page.locator("#theme").click();
+  const ceiling = page.locator('[data-fixture-entity="light.example_ceiling"]');
+  await ceiling.getByRole("button", { name: "Adjust Ceiling", exact: true }).click();
+  const white = ceiling.getByRole("slider", { name: "Ceiling white tone", exact: true });
+  await white.focus(); await white.press("End");
+  await expect(white).toHaveAttribute("aria-valuetext", "6500 K");
+  expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({ domain: "light", service: "turn_on", data: { entity_id: "light.example_ceiling", color_temp_kelvin: 6500 } });
+  const beforeMode = await page.evaluate(() => window.previewCalls.length);
+  await ceiling.getByRole("button", { name: "Colour", exact: true }).click();
+  expect(await page.evaluate(() => window.previewCalls.length)).toBe(beforeMode);
+  const hue = ceiling.getByRole("slider", { name: "Ceiling colour", exact: true });
+  await hue.focus(); await hue.press("Home");
+  await expect(hue).toHaveAttribute("aria-valuetext", "Red");
+  const strength = ceiling.getByRole("slider", { name: "Ceiling colour strength", exact: true });
+  await strength.focus(); await strength.press("End");
+  expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({ data: { hs_color: [0,100] } });
+  await expect(ceiling.getByRole("combobox")).toHaveCount(0);
+  const room = page.locator('[data-fixture-entity="light.example_room"]');
+  await room.getByRole("combobox", { name: "Living room scene" }).selectOption("Relax");
+  expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({ domain: "select", service: "select_option", data: { entity_id: "select.example_room_scene", option: "Relax" } });
+  await expect(page.getByRole("button", { name: "Hide Living lights", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await page.screenshot({ path: "artifacts/screenshots/lights-inline-colour-light.png" });
+  await page.setViewportSize({ width: 1100, height: 844 });
+  const geometry = await room.evaluate((element) => ({ width: element.clientWidth, scroll: element.scrollWidth }));
+  expect(geometry.scroll).toBeLessThanOrEqual(geometry.width);
+});
+
+test("scenario: pending light changes keep reported values, survive one-step baseline updates, and fail visibly", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/preview/?view=lights");
+  const ceiling = page.locator('[data-fixture-entity="light.example_ceiling"]');
+  const slider = ceiling.getByRole("slider", { name: "Ceiling brightness", exact: true });
+  const stableHeight = (await ceiling.boundingBox())!.height;
+  await page.evaluate(() => { window.previewDeferNext = true; });
+  await slider.focus(); await slider.press("ArrowRight");
+  await expect(ceiling.locator(".identity")).toContainText("Ceiling · 68%");
+  await expect(slider).toBeDisabled();
+  expect((await ceiling.boundingBox())!.height).toBeCloseTo(stableHeight, 1);
+  await page.evaluate(() => window.previewLightState("light.example_ceiling", { attributes: { supported_color_modes: ["color_temp", "xy"], brightness: 173, color_mode: "color_temp", color_temp_kelvin: 3000, min_color_temp_kelvin: 2000, max_color_temp_kelvin: 6500, hs_color: [210,60], unrelated: true } }));
+  await expect(slider).toBeDisabled();
+  await page.evaluate(() => window.previewFinishDeferred());
+  await expect(slider).toBeEnabled();
+  await expect(ceiling.locator(".identity")).toContainText("69%");
+  await page.evaluate(() => { window.previewFailNext = true; });
+  await slider.focus(); await slider.press("ArrowLeft");
+  await expect(ceiling.getByRole("alert")).toContainText("Couldn't send");
+  await expect(ceiling.locator(".identity")).toContainText("69%");
+  await page.evaluate(() => { window.previewSuppressReadback = true; });
+  await slider.focus(); await slider.press("ArrowLeft");
+  await page.clock.fastForward(10001);
+  await expect(ceiling.getByRole("alert")).toContainText("No confirmation");
+  await expect(ceiling.locator(".identity")).toContainText("69%");
+  const offline = page.locator('[data-fixture-entity="light.example_offline"]');
+  await expect(offline.locator(".identity")).toContainText("Unavailable");
+  await expect(offline.getByRole("slider")).toHaveCount(0);
+  await expect(offline.getByRole("button")).toBeDisabled();
+  await page.screenshot({ path: "artifacts/screenshots/lights-reported-state-dark.png" });
+});
+
+test("scenario: native room-member helpers dispose on close, ignore late results and avoid one-member duplicates", async ({ page }) => {
+  await page.goto("/preview/?view=lights");
+  const living = page.locator('[data-fixture-entity="light.example_room"]');
+  await expect(page.locator('[data-fixture-entity="light.example_ceiling"]')).toBeVisible();
+  await living.getByRole("button", { name: "Hide Living lights", exact: true }).click();
+  await expect(page.locator('[data-fixture-entity="light.example_ceiling"]')).toHaveCount(0);
+  await page.evaluate(() => {
+    const nativeHelpers = window.loadCardHelpers!;
+    let release!: (helpers: Awaited<ReturnType<typeof nativeHelpers>>) => void;
+    window.loadCardHelpers = () => new Promise((resolve) => { release = resolve; });
+    window.previewReleaseHelpers = async () => { window.loadCardHelpers = nativeHelpers; release(await nativeHelpers()); };
+  });
+  await living.getByRole("button", { name: "Show Living lights", exact: true }).click();
+  await expect(living.locator(".member-status")).toContainText("Loading lights");
+  await living.getByRole("button", { name: "Hide Living lights", exact: true }).click();
+  await page.evaluate(() => window.previewReleaseHelpers());
+  await expect(page.locator('[data-fixture-entity="light.example_ceiling"]')).toHaveCount(0);
+  await living.getByRole("button", { name: "Show Living lights", exact: true }).click();
+  await expect(page.locator('[data-fixture-entity="light.example_ceiling"]')).toBeVisible();
+  const bedroom = page.locator('[data-fixture-entity="light.example_bedroom"]');
+  await bedroom.evaluate((element) => {
+    (element as unknown as { setConfig(config: Record<string, unknown>): void }).setConfig({ type: "custom:alx-light-row-card", entity: "light.example_bedroom", name: "Bedroom", group: true, cards: [{ type: "custom:alx-light-row-card", entity: "light.example_strip" }] });
+  });
+  await expect(bedroom.locator(".members-toggle")).toHaveCount(0);
+  await expect(bedroom.locator("alx-light-row-card")).toHaveCount(0);
+});
+
 declare global {
   interface Window {
     previewCalls: Array<Record<string, unknown>>;
@@ -317,6 +440,8 @@ declare global {
     previewDeferNext: boolean;
     previewSetAwayState: (mode: string, timerState?: string, finishesAt?: string) => void;
     previewFinishDeferred: (reject?: boolean) => void;
+    previewReleaseHelpers: () => Promise<void>;
+    previewLightState: (entity: string, update: Record<string, unknown>) => void;
     previewSetPcState: (power: string, timer?: string, remaining?: string) => void;
   }
 }

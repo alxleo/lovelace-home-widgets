@@ -1,3 +1,4 @@
+import "./cards/light-row/card";
 import "./cards/heating-history/card";
 import "./cards/pc-power/card";
 import "./cards/timed-away/card";

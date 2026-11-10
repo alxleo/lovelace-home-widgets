@@ -43,3 +43,16 @@ cards:
     power_entity: switch.example_pc
     timer_entity: timer.example_pc_shutdown
     presets: [15, 30, 60]
+
+  - type: custom:alx-light-row-card
+    entity: light.example_room
+    name: Living
+    group: true
+    scene_entity: select.example_room_scene
+    cards:
+      - type: custom:alx-light-row-card
+        entity: light.example_ceiling
+        name: Ceiling
+      - type: custom:alx-light-row-card
+        entity: light.example_strip
+        name: TV strip

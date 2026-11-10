@@ -1,5 +1,9 @@
 import "/dist/alx-home-widgets.js";
 
+if (new URLSearchParams(window.location.search).get("view") === "lights") {
+  await import("./lights.mjs");
+} else {
+
 const NOW = Date.parse("2026-08-30T14:00:00Z");
 let awayMode = "Schedule";
 let timerState = "idle";
@@ -170,3 +174,5 @@ window.previewFinishDeferred = (reject = false) => {
   if (reject) deferredRequest.reject(new Error("Backend rejected the resume request; heating was not changed"));
   else deferredRequest.resolve();
 };
+
+}

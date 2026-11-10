@@ -12,10 +12,10 @@
     {
       "id": "bubble-card",
       "repository": "https://github.com/Clooos/Bubble-Card.git",
-      "revision": "22f052b9d087abb36651a410814ee4c42298ff17",
-      "paths": ["src/cards", "src/components", "src/tools", "src/editor"],
-      "adopted": ["multiple cards in one bundle", "per-card editors and tests", "compact mobile controls"],
-      "rejected": ["monolithic dispatcher", "translated documentation and module ecosystem"]
+      "revision": "2c3b43d1168ca05701be15fd96e416609601ecfa",
+      "paths": ["README.md", "src/components/sub-button/types/slider/index.js", "src/components/slider/create.js", "src/components/sub-button/styles.css"],
+      "adopted": ["compact named brightness bars", "release-only slider commands", "capability-driven white and colour controls"],
+      "rejected": ["row-replacing adjustment overlays that hide identity", "unlabelled non-semantic slider interaction", "global input blocker", "arbitrary JavaScript/CSS templates"]
     },
     {
       "id": "button-card",

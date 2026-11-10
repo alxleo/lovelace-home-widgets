@@ -9,7 +9,7 @@ render the compact comparison with `npm run sources:board`.
 - [Boilerplate Card](https://github.com/custom-cards/boilerplate-card/tree/400e118f7add31f5727729f3e92f3314e43e74e4)
   is the implementation skeleton: Lit 3, editor discovery, picker registration,
   Rollup, HACS metadata, and a release asset.
-- [Bubble Card](https://github.com/Clooos/Bubble-Card/tree/22f052b9d087abb36651a410814ee4c42298ff17)
+- [Bubble Card](https://github.com/Clooos/Bubble-Card/tree/2c3b43d1168ca05701be15fd96e416609601ecfa)
   proves that one HACS Dashboard repository can own multiple independent cards
   and editors. Its compact control density is useful; its dispatcher and broad
   module system are not needed here.
@@ -56,3 +56,22 @@ Native datetime behavior follows Home Assistant’s [frontend locale contract](h
 and [time formatter](https://github.com/home-assistant/frontend/blob/dev/src/common/datetime/format_time.ts):
 respect 12/24-hour preference, locale language, and server/local timezone.
 The implementation uses the browser’s Intl API and adds no formatting dependency.
+
+## Lighting control decisions
+
+| Primary source | Adopted | Rejected / boundary |
+| --- | --- | --- |
+| [HA light contract](https://www.home-assistant.io/integrations/light/) and [colour capabilities](https://developers.home-assistant.io/docs/core/entity/light/) | Native percentages, Kelvin bounds, colour modes and reported state | Mired action values, invented supported controls, service acceptance presented as physical confirmation |
+| [HA Tile](https://www.home-assistant.io/dashboards/tile/) / [features](https://www.home-assistant.io/dashboards/features/) | Capability-driven inline controls and clear native actions | Stacking every feature under every light, which makes routine room lists too tall |
+| [Philips Hue app](https://www.philips-hue.com/en-us/explore-hue/apps/bridge) | Room-level scene and brightness ownership on the same surface | A global scene inventory or scene menu attached to individual bulbs |
+| [HA Hue scene selection](https://www.home-assistant.io/integrations/hue/#scene-selection) | Existing native room-bound selectors and their option/state contracts | Copied scene lists or fabricated per-bulb scene entities |
+| Bubble Card3.4.3, locked above | Compact name/brightness bar and release-only updates | Real-screen audit showed repeated three-icon inventories and overlays removing the light name. The replacement retains identity and uses labelled native HTML ranges. |
+| [Expander7.3.7 source](https://github.com/MelleD/lovelace-expander-card/blob/7.3.7/src/ExpanderCard.svelte) | Inline member disclosure | Centring a room disclosure beside an expanded title-card editor; no alignment override is added. The same light-row owns its own header/member disclosure. |
+
+The optional child-card boundary uses HA's native `loadCardHelpers` /
+`createCardElement`; Auto Entities remains the membership owner. The bundle
+adds one card, no dependency or separately installed component. Preview icons
+are unchanged licensed [Material Design Icons7.4.47](https://www.npmjs.com/package/@mdi/svg/v/7.4.47)
+assets under `preview/icons`; production uses Home Assistant's native icon
+renderer and registry overrides. Private screenshots and household entities
+never enter the public repository.

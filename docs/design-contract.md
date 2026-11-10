@@ -60,6 +60,44 @@ Actual ━    Target ┄    Heat requested ▧
   preferences, including server versus local time. Round civil-clock ticks
   remain aligned through daylight-saving changes.
 
+## Light rows
+
+```text
+[capability/power] [Living ·72%████░░] [Scene ▾] [Adjust] [lights ▾]
+  [capability/power] [Ceiling ·68%██░] [Adjust ▴]
+                       [White | Colour]
+                       White tone               3000K
+                       warm ━━━━━●━━━━━━━━━━━━ cool
+```
+
+| Intent | Contract |
+| --- | --- |
+| Find and dim a light | Name and reported percentage share one native range bar; power has its own44px recognisable power button with a small registry/capability indicator. No extra ornamental icon or repeated heading. A theme-aware handle sits behind the label, so0%/low values cannot cover the name. The percentage stays visible when a long name truncates. |
+| Tune white or colour | One labelled **Adjust** disclosure. Identity stays visible. White/Colour changes editor mode without a device command. White tone uses native Kelvin bounds, warm on the left. Colour and Colour strength are labelled keyboard/touch ranges. |
+| Control a room | Explicit `group: true` enables a native room `scene_entity` and optional `cards`. HA's native card helpers render member cards. One member is represented by the primary row; multiple members get one separately labelled disclosure. Auto Entities can populate `cards`, retaining dynamic membership ownership. |
+| Know whether it worked | Draft percentage says preview inside the same bar. Pending shows reported values with an ellipsis and an aria-live explanation. Neither creates a new status row or changes ordinary card height. A service response is not confirmation: relevant light attributes must change and match the request. Failure expands a useful inline error. |
+
+- Fixed-white dimmers get brightness; on/off plugs get power; white/colour
+  controls appear only for supported colour modes. Registry icons take
+  precedence over capability defaults. `name_prefix` removes redundant room
+  prefixes from native friendly names without changing any entity identifier.
+- Unknown readings are labelled **Not reported**. No invented current Kelvin,
+  hue or strength is shown. Choosing a colour with unknown/zero strength
+  requests100% strength so the chosen colour is visible; otherwise strength is
+  retained. Strength remains disabled until a colour is reported.
+- Scenes exist on explicit room rows only. Native selector state owns the
+  displayed active scene; requesting a scene never fabricates an active option.
+- Commands use `brightness_pct`, `color_temp_kelvin` and `hs_color`. Release
+  commits a slider command; dragging does not flood the device. Readback
+  tolerances accommodate device quantisation without accepting an unchanged
+  baseline. New requests have identities; late promises cannot clear newer ones.
+- Closing/removing/reconfiguring a room disposes child cards. Asynchronous card
+  helper results are generation-guarded. Children receive current HA state and
+  their own native lifecycle owns subscriptions. No generic rendering framework,
+  global interaction blocker, helper entity or new dashboard resource is added.
+- Rare device details use the native power-button context menu. There is no
+  repeated visible details button or nested modal in ordinary control paths.
+
 ## Timed away
 
 - Present one temporary Away intent, not competing Away and Off modes.
