@@ -19,8 +19,10 @@ evidence proves a better one; do not append conversational history.
   preserves the scroll anchor, caches prior pages, and never implies that seven
   days is the retention limit.
 - Actual, target, and heating-request signals share one time coordinate.
-  Weather occupies an aligned secondary lane so its wider range cannot flatten
-  indoor changes.
+  Indoor and outdoor temperatures use the same labelled Celsius scale: colder
+  outside readings must appear to the left of warmer indoor readings. Only rain
+  has its own explicitly labelled lane. Heating-request periods are translucent
+  full-width bands behind the temperature traces; target traces are dashed.
 - Target temperatures are held values: draw vertical held segments and
   horizontal transitions, never diagonal interpolation. Heating-request draws
   held on intervals and its direct label reports the latest held state in the
@@ -28,7 +30,10 @@ evidence proves a better one; do not append conversational history.
   samples terminate held geometry; do not bridge a gap or extend a stale final
   value through it.
 - Labels sit beside their latest valid values. Pointer/touch inspection gives
-  exact values at one time. Do not reserve permanent space for a legend.
+  exact values at one time in a non-interactive overlay. Inspection must not
+  change card size, timeline position, or scroll anchor. SVG coordinates follow
+  the real plot width so wide cards do not center a narrow mobile canvas.
+  Do not reserve permanent space for a legend.
 - Missing data remains missing. Label precipitation as an estimate unless the
   supplied entity is a physical observation.
 - “Heating requested” describes a thermostat request; it does not assert that a
@@ -73,6 +78,10 @@ evidence proves a better one; do not append conversational history.
   cancellation when the PC drops off the network.
 
 ## Visual acceptance
+
+| Release check | Policy |
+| --- | --- |
+| Dependency audit | Report every severity; fail CI and release for moderate, high or critical findings. The current low-severity [deepmerge advisory](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) has no patched release and affects the existing build resolver. It remains visible in audit output. |
 
 - The deterministic preview covers dark day history, light week history, the
   complete duration picker, active/cancel, backend fault/recovery, and action

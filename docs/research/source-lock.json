@@ -29,9 +29,9 @@
       "id": "apexcharts-card",
       "repository": "https://github.com/RomRider/apexcharts-card.git",
       "revision": "6d3f1e9843f2d58ff73098128e78be8f57a5272b",
-      "paths": ["src", "tests", "rollup.config.js"],
-      "adopted": ["typed chart configuration", "bounded history handling", "HA fixture-driven tests"],
-      "rejected": ["large chart dependency for a narrow vertical canvas"]
+      "paths": ["src/apex-layouts.ts", "src/apexcharts-card.ts", "src/types-config.ts"],
+      "adopted": ["typed chart configuration", "bounded history handling", "HA fixture-driven tests", "explicit comparable temperature scale", "background range annotations for heating periods"],
+      "rejected": ["large chart dependency for a narrow vertical canvas", "independent outdoor scale placed on the warmer side"]
     },
     {
       "id": "home-assistant-core-history",

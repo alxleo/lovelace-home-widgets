@@ -73,6 +73,7 @@ describe("pc power", () => {
       type: "custom:alx-pc-power-card",
       power_entity: "switch.example_pc",
       state_entity: "binary_sensor.example_pc_connected",
+      timer_entity: "timer.example_pc_shutdown",
       usage_entity: "sensor.example_pc_time_on_today",
     });
     const optimisticSwitchOn = {

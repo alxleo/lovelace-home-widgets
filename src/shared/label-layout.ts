@@ -13,9 +13,10 @@ export const placeDirectLabel = (
 ): { x: number; baseline: number; rect: LabelRect } => {
   const gap = 3;
   const fixedX = Math.min(Math.max(x, bounds.left), bounds.right - width);
+  const clampedBaseline = Math.min(bounds.bottom, Math.max(bounds.top + height, baseline));
   for (let offset = 0; offset <= occupied.length + 2; offset += 1) {
     for (const direction of offset === 0 ? [0] : [-1, 1]) {
-      const y = Math.min(bounds.bottom, Math.max(bounds.top + height, baseline + direction * offset * (height + gap)));
+      const y = Math.min(bounds.bottom, Math.max(bounds.top + height, clampedBaseline + direction * offset * (height + 2 * gap)));
       const rect = { left: fixedX - gap, right: fixedX + width + gap, top: y - height - gap, bottom: y + gap };
       if (!occupied.some((item) => overlaps(item, rect))) {
         occupied.push(rect);
@@ -23,7 +24,7 @@ export const placeDirectLabel = (
       }
     }
   }
-  const rect = { left: fixedX, right: fixedX + width, top: baseline - height, bottom: baseline };
+  const rect = { left: fixedX, right: fixedX + width, top: clampedBaseline - height, bottom: clampedBaseline };
   occupied.push(rect);
-  return { x: fixedX, baseline, rect };
+  return { x: fixedX, baseline: clampedBaseline, rect };
 };

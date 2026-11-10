@@ -1,5 +1,6 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import type { HeatingHistoryCard } from "../../src/cards/heating-history/card";
 
 test.beforeAll(() => {
   rmSync("artifacts/screenshots", { recursive: true, force: true });
@@ -10,7 +11,7 @@ test("scenario: mobile day history is dense, direct-labelled and scrolls into th
   await page.goto("/preview/");
   const card = page.locator("alx-heating-history-card");
   await expect(card).toBeVisible();
-  await expect(card.locator(".direct-label")).toHaveCount(5);
+  await expect(card.locator(".direct-label")).toHaveCount(4);
   await expect(card.locator('[data-kind="precipitation"]')).not.toHaveCount(0);
   const box = await card.boundingBox();
   expect(box?.width).toBeLessThanOrEqual(390);
@@ -22,22 +23,31 @@ test("scenario: mobile day history is dense, direct-labelled and scrolls into th
   }
   const timeBoxes = await Promise.all((await card.locator(".time-label").all()).map((label) => label.boundingBox()));
   const timeRight = Math.max(...timeBoxes.map((label) => label!.x + label!.width));
-  const requestBox = await card.locator('[data-kind="heating-request"]').boundingBox();
+  const requestBox = await card.locator('[data-kind="heating-request"] rect').first().boundingBox();
   expect(requestBox!.x).toBeGreaterThan(timeRight);
+  expect(requestBox!.width).toBeGreaterThan(timelineBox!.width * .65);
+  expect(requestBox!.height).toBeGreaterThan(1);
+  const outdoors = await card.locator('polyline[data-kind="outdoor_temperature"]').boundingBox();
+  const indoors = await card.locator('polyline[data-kind="actual_temperature"]').first().boundingBox();
+  expect(outdoors!.x + outdoors!.width).toBeLessThan(indoors!.x);
+  const beforeHover = await card.locator('.timeline').boundingBox();
   const targetSeries = card.locator('[data-kind="target_temperature"] .series');
   await expect.poll(() => targetSeries.count()).toBeGreaterThanOrEqual(2);
   const targetPath = await targetSeries.first().getAttribute("d");
   expect(targetPath).toMatch(/V .* H /);
   expect(targetPath).not.toContain("L");
   for (const interval of await card.locator('[data-kind="heating-request"] .request').all()) {
-    expect(await interval.getAttribute("x1")).toBe(await interval.getAttribute("x2"));
+    expect(Number(await interval.getAttribute("width"))).toBeGreaterThan(200);
   }
-  await expect(card.locator('[data-label="heating-request"]')).toHaveText("No heat req.");
+  await expect(card.locator('[data-label="heating-request"]')).toHaveCount(0);
   await page.screenshot({ path: "artifacts/screenshots/history-day-now-dark.png" });
 
   await page.mouse.move(timelineBox!.x + timelineBox!.width * .55, timelineBox!.y + timelineBox!.height * .45);
   const inspector = card.locator(".inspector");
   await expect(inspector).toBeVisible();
+  const afterHover = await card.locator('.timeline').boundingBox();
+  expect(afterHover!.y).toBeCloseTo(beforeHover!.y, 1);
+  expect(afterHover!.height).toBeCloseTo(beforeHover!.height, 1);
   await expect(inspector).toContainText("Zone A");
   await expect(inspector).toContainText(/Rain \d+\.\d mm \(estimated\)/);
   await expect(inspector).not.toContainText("Rain est.");
@@ -64,7 +74,7 @@ test("scenario: mobile day history is dense, direct-labelled and scrolls into th
     addedHeight: element.scrollHeight,
   }));
   expect(Math.abs(anchor.scrollTop - (anchor.addedHeight - beforeHeight))).toBeLessThanOrEqual(2);
-  await expect(card.locator(".direct-label")).toHaveCount(5);
+  await expect(card.locator(".direct-label")).toHaveCount(4);
   await card.evaluate((element) => element.scrollIntoView({ block: "start" }));
   await page.screenshot({ path: "artifacts/screenshots/history-day-earlier-dark.png" });
 });
@@ -83,6 +93,64 @@ test("scenario: week scale remains scrollable and readable in light theme", asyn
   expect(target!.y + target!.height).toBeLessThanOrEqual(timelineBox!.y + timelineBox!.height);
   expect(lastTime!.y + lastTime!.height).toBeLessThanOrEqual(timelineBox!.y + timelineBox!.height);
   await page.screenshot({ path: "artifacts/screenshots/history-week-bright-theme.png" });
+});
+
+test("scenario: history zoom and viewport resize preserve the selected range and visible labels", async ({ page }) => {
+  await page.goto("/preview/");
+  const card = page.locator("alx-heating-history-card");
+  const timeline = card.locator(".timeline");
+  for (let pageIndex = 0; pageIndex < 2; pageIndex += 1) {
+    const height = await timeline.evaluate((element) => element.scrollHeight);
+    await timeline.evaluate((element) => { element.scrollTop = 0; element.dispatchEvent(new Event("scroll")); });
+    await expect.poll(() => timeline.evaluate((element) => element.scrollHeight)).toBeGreaterThan(height);
+  }
+  for (const scale of ["Week", "Day"]) {
+    await card.getByRole("button", { name: scale }).click();
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(card.locator("svg")).toHaveCSS("height", "590px");
+  }
+  await page.setViewportSize({ width: 390, height: 600 });
+  await expect(timeline).toHaveCSS("height", "420px");
+  await expect.poll(async () => {
+    const bounds = (await timeline.boundingBox())!;
+    const labels = await card.locator(".direct-label").all();
+    return (await Promise.all(labels.map((label) => label.boundingBox())))
+      .every((box) => box && box.y >= bounds.y && box.y + box.height <= bounds.y + bounds.height);
+  }).toBe(true);
+});
+
+test("scenario: removing history during its first request leaves no observing resource", async ({ page }) => {
+  await page.goto("/preview/");
+  await expect(page.locator("alx-heating-history-card svg")).toBeVisible();
+  const observing = await page.evaluate(async () => {
+    let complete!: (response: Record<string, never[]>) => void;
+    const pending = new Promise<Record<string, never[]>>((resolve) => { complete = resolve; });
+    const card = document.createElement("alx-heating-history-card") as HeatingHistoryCard;
+    const NativeObserver = window.ResizeObserver;
+    let observed = 0;
+    window.ResizeObserver = class extends NativeObserver {
+      observe(target: Element, options?: ResizeObserverOptions): void {
+        if ((target.getRootNode() as ShadowRoot).host === card) observed += 1;
+        super.observe(target, options);
+      }
+    };
+    try {
+      card.setConfig({ type: "custom:alx-heating-history-card", series: [
+        { kind: "actual_temperature", entity: "climate.example_zone_a", label: "Zone A" },
+      ] });
+      card.hass = { states: {}, callWS: async <T>() => await pending as T, callService: async () => undefined };
+      document.body.append(card);
+      await card.updateComplete;
+      card.remove();
+      complete({});
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      return observed;
+    } finally {
+      card.remove();
+      window.ResizeObserver = NativeObserver;
+    }
+  });
+  expect(observing).toBe(0);
 });
 
 test("scenario: timed away offers presets, an approximate scrubber, one apply and one cancel", async ({ page }) => {
