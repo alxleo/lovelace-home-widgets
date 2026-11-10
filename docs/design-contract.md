@@ -3,12 +3,44 @@
 This is the current reusable contract. Replace a rule when measured real-device
 evidence proves a better one; do not append conversational history.
 
+## Shared interaction principles
+
+```text
+Light    [power] [Ceiling · 68% ██████░░] [Adjust]
+Heating  On schedule
+         Pause [15m] [30m] [1h] [2h] [Custom]
+Paused   Until Tue 15:47              [Resume schedule]
+```
+
+| Principle | Required design decision |
+| --- | --- |
+| Keep identity and value together | Put the light name and reported percentage in its brightness bar. Keep heating mode, active end time or requested duration beside the control they explain. Adjusting must not replace the identity with an anonymous slider. |
+| Make frequent actions direct | A common pause duration starts with one tap from the resting card. A visible light dims in its named bar. Do not hide the submit action needed for every ordinary use behind Open → choose → Apply. Keep backend authorization and physical safety policy intact. |
+| Disclose secondary complexity | Custom duration, colour tuning and room members may expand inline. Progressive disclosure hides secondary complexity while primary useful actions remain visible. Keep one disclosure per purpose and no nested pop-ups in ordinary use. |
+| Remove duplication | One room primary row, no duplicate single-bulb child. Do not repeat a heading, duration, state or instruction strip when the same control already communicates it. Use one meaningful dismissal. |
+| Make actions recognisable | Label groups and uncommon controls. An icon must explain an action or capability; ornamental icons and unexplained inventories do not earn space. Use native keyboard/touch semantics and 44 px targets for controls. |
+| Preserve layout while acting | Preview, pending and confirmation use existing rows. Names and values stay legible at all slider positions. Ordinary progress must not add blank strips, reflow the room or move the next control. A real error may expand inline. |
+| Report reality | Distinguish draft, requested and reported state. A service reply is not physical confirmation. Unknown, unavailable, fault and inconsistent state remain explicit; never show a fabricated successful mode or active scene. |
+| Reuse the native owner | Prefer existing components, entity capabilities, theme variables and backend actions. Add a component only when the user can forget an existing responsibility; keep household policy and identifiers outside this public bundle. |
+
+| Representative path from the resting view | Earlier interaction | Required path |
+| --- | --- | --- |
+| Dim an individual light in a room | Open room → open bulb details → adjust (3 interactions) | Expand members if hidden → named brightness bar (2); an already visible light needs 1 gesture |
+| Pause for 30 minutes | Open picker → choose 30 m → Apply (3 taps) | Tap 30 m (1 tap) |
+| Pause for the default hour | Open picker → Apply (2 taps) | Tap 1 h (1 tap) |
+| Use a rare exact pause duration | Reveal duration → enter minutes → Apply | Custom → exact minutes → Apply, all inline |
+
+These principles govern every widget change. The examples describe interaction
+structure, not extra headings to copy into the interface. Verify a representative
+real path, including action count and reported outcome, rather than accepting a
+compact screenshot that still requires repeated navigation.
+
 ## Mobile grammar
 
 - Design and accept at 390 x 844 first. Current state and its next useful action
   should not be displaced by decorative headings or large empty cards.
 - Prefer one dense explanatory surface to repeated metric strips. Interactive
-  controls remain at least 40 px high and use text as well as colour.
+  controls remain at least 44 px high and use text as well as colour.
 - Use Home Assistant theme variables and readable focus/disabled/error states.
   Reduced-motion users must not depend on animation for meaning.
 
@@ -75,7 +107,7 @@ Actual ━    Target ┄    Heat requested ▧
 
 | Intent | Contract |
 | --- | --- |
-| Find and dim a light | Name and reported percentage share one native range bar; power has its own44px recognisable power button with a small registry/capability indicator. No extra ornamental icon or repeated heading. A theme-aware handle sits behind the label, so0%/low values cannot cover the name. The percentage stays visible when a long name truncates. |
+| Find and dim a light | Name and reported percentage share one native range bar; power has its own 44 px recognisable power button with a small registry/capability indicator. No extra ornamental icon or repeated heading. A theme-aware handle sits behind the label, so 0%/low values cannot cover the name. The percentage stays visible when a long name truncates. |
 | Tune white or colour | One labelled **Adjust** disclosure. Identity stays visible. White/Colour changes editor mode without a device command. White tone uses native Kelvin bounds, warm on the left. Colour and Colour strength are labelled keyboard/touch ranges. |
 | Control a room | Explicit `group: true` enables a native room `scene_entity` and optional `cards`. HA's native card helpers render member cards. One member is represented by the primary row; multiple members get one separately labelled disclosure. Auto Entities can populate `cards`, retaining dynamic membership ownership. |
 | Know whether it worked | Draft percentage says preview inside the same bar. Pending shows reported values with an ellipsis and an aria-live explanation. Neither creates a new status row or changes ordinary card height. A service response is not confirmation: relevant light attributes must change and match the request. Failure expands a useful inline error. |
@@ -86,7 +118,7 @@ Actual ━    Target ┄    Heat requested ▧
   prefixes from native friendly names without changing any entity identifier.
 - Unknown readings are labelled **Not reported**. No invented current Kelvin,
   hue or strength is shown. Choosing a colour with unknown/zero strength
-  requests100% strength so the chosen colour is visible; otherwise strength is
+  requests 100% strength so the chosen colour is visible; otherwise strength is
   retained. Strength remains disabled until a colour is reported.
 - Scenes exist on explicit room rows only. Native selector state owns the
   displayed active scene; requesting a scene never fabricates an active option.
@@ -104,25 +136,32 @@ Actual ━    Target ┄    Heat requested ▧
 ## Timed away and heating pause
 
 ```text
-On schedule                                      [Close]
-  [15m] [30m] [1h] [2h]
-  [47 min]     until Sun 15:47           [Pause heating]
+On schedule
+Pause [15m] [30m] [1h] [2h] [Custom]
+
+Custom only:
+[47 min]     until Sun 15:47           [Pause heating]
 
 Heating paused                         [Resume schedule]
-Paused until Sun 15:47
+Until Sun 15:47
 ```
 
 | Intent | Existing card configuration | Duration defaults |
 | --- | --- | --- |
-| Temporary Away | `intent: away` (default), existing configured actions | 1h, 4h, 8h30 presets; 30m–48h; initial8h30 |
-| Temporary heating pause | `intent: pause`, configured start/resume actions | 15m, 30m, 1h, 2h presets; 1m–48h; initial1h |
+| Temporary Away | `intent: away` (default), existing configured actions | 1 h, 4 h, 8 h 30 m presets; 30 m–48 h; initial 8 h 30 m |
+| Temporary heating pause | `intent: pause`, configured start/resume actions | 15 m, 30 m, 1 h, 2 h direct actions; 1 m–48 h custom range; initial 1 h |
 
-- Both intents use one inline duration disclosure, never a modal, backdrop or
-  browser-owned countdown. The existing card/resource is extended. Pause uses
-  one preset row and one exact-minutes/end-time/apply row. Close in the summary
-  is the sole dismissal. Away retains its approximate logarithmic scrubber;
-  exact whole minutes and presets remain exact. Show the localised end time
-  before Apply, without repeating a duration readout or permanent range prose.
+- Pause presets are direct native actions, always visible while on schedule.
+  The group is labelled **Pause**, and each button includes its duration. One
+  click/tap sends exactly one request; there is no picker or Apply for common
+  durations. These are action buttons, not selected/pressed options.
+- **Custom** expands only exact minutes, localised end time and Apply inline.
+  It never repeats the direct presets. Close is the only dismissal. Pending
+  keeps the requested duration and reported mode in existing rows, disables
+  repeated requests and does not reflow the card.
+- Away retains its deliberate choose-and-apply flow and approximate logarithmic
+  scrubber. Both intents use the existing resource, with no modal, backdrop,
+  browser-owned countdown, duplicate duration readout or permanent range prose.
 - `duration` optionally configures `min_minutes`, `max_minutes`, `presets` and
   `default_minutes`. Invalid, blank or out-of-range exact input disables Apply
   without silently clamping the typed value. Supported bounds are whole minutes;
@@ -140,12 +179,12 @@ Paused until Sun 15:47
   Fault and mismatch offer the same configured recovery action. In-flight progress
   never replaces the reported backend mode. A service response alone does not
   confirm the change: controls wait for reported applying/active/restoring/schedule
-  state, with a visible timeout. Apply refusal retains the picker; failed resume
+  state, with a visible timeout. A custom Apply refusal retains the picker; a direct refusal retains the visible presets; failed resume
   retains the reported Fault or mismatch. Late request results cannot clear a
   newer request; disconnect/config change clears owned timers and pending work.
 - Default titles show the current mode without repeating an extra Away/Heating
   heading. An explicit custom title retains its meaning; the status below it
-  still exposes the backend mode. Inputs/buttons use native semantics and44px
+  still exposes the backend mode. Inputs/buttons use native semantics and 44 px
   targets. Escape closes the inline picker and returns focus to its disclosure.
 - Backend automation owns authorization, whole-home policy, safety setpoints,
   receiver readback, expiry, restart recovery, rollback and schedule restoration.

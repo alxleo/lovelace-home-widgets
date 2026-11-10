@@ -59,6 +59,24 @@
         "timer paused confused with heating paused",
         "browser-owned countdown or expiry policy"
       ]
+    },
+    {
+      "id": "wai-actions-disclosures",
+      "repository": "https://github.com/w3c/aria-practices.git",
+      "revision": "0f765e4dc33e966026114ac12a8380db1de3b787",
+      "paths": [
+        "content/patterns/button/button-pattern.html",
+        "content/patterns/disclosure/disclosure-pattern.html"
+      ],
+      "adopted": [
+        "native action buttons for immediate pause presets",
+        "disclosure semantics only for secondary custom duration",
+        "explicit action labels and keyboard activation"
+      ],
+      "rejected": [
+        "pressed/selected state for a one-shot command",
+        "concealing primary commands behind an ordinary disclosure"
+      ]
     }
   ]
 }

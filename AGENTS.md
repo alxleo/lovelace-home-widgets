@@ -4,7 +4,9 @@
   research provenance, and release artifacts. It never owns household entities,
   dashboard configuration, credentials, heating policy, or authorization.
 - Start visual work from `docs/design-contract.md` and refine that contract in
-  place after measured evidence; do not add conversational design logs.
+  place after measured evidence. Its shared interaction principles govern every
+  widget change: primary actions stay visible, disclosure is secondary, and
+  names/values remain together. Do not add conversational design logs.
 - Search exact upstream sources through `tools/source-workshop.mjs`. Update the
   locked revision, inspected paths, and adopted/rejected decisions together.
 - Use fictional entities from `examples/public-entities.json`. Run

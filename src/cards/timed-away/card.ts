@@ -8,7 +8,7 @@ import {
 } from "./model";
 
 const ELEMENT = "alx-timed-away-card";
-interface Pending { id: number; kind: "apply" | "cancel"; baseline: TimedAwayMode; timer: ReturnType<typeof setTimeout> }
+interface Pending { id: number; kind: "apply" | "cancel"; baseline: TimedAwayMode; minutes?: number; timer: ReturnType<typeof setTimeout> }
 
 @customElement(ELEMENT)
 export class TimedAwayCard extends LitElement {
@@ -84,7 +84,7 @@ export class TimedAwayCard extends LitElement {
   private begin(kind: Pending["kind"]): number {
     const id = ++this.requestId;
     this.error = undefined;
-    this.pending = { id, kind, baseline: this.mode, timer: setTimeout(() => this.finish(id, "No confirmation from heating. Check its reported state before trying again."), 10000) };
+    this.pending = { id, kind, baseline: this.mode, minutes: kind === "apply" ? this.selectedMinutes : undefined, timer: setTimeout(() => this.finish(id, "No confirmation from heating. Check its reported state before trying again."), 10000) };
     return id;
   }
 
@@ -101,14 +101,30 @@ export class TimedAwayCard extends LitElement {
         <div class="summary" data-mode=${mode}>
           <div class="copy">
             <h2>${standardTitle ? title : this.config.title}</h2>
-            ${standardTitle && mode === "schedule" ? nothing : html`<span role=${mode === "fault" || mode === "mismatch" ? "alert" : nothing}>${this.statusText(mode, endsAt)}</span>`}
+            ${standardTitle && mode === "schedule" ? nothing : html`<span role=${mode === "fault" || mode === "mismatch" ? "alert" : nothing}>${standardTitle && (mode === "away" || mode === "paused") ? `Until ${this.formatEndsAt(endsAt)}` : this.statusText(mode, endsAt)}</span>`}
           </div>
           ${this.renderSummaryAction(mode)}
         </div>
+        ${this.pause && mode === "schedule" ? this.renderQuickPause() : nothing}
         ${this.open && mode === "schedule" ? this.renderPicker() : nothing}
         ${this.error ? html`<p class="error" role="alert">${this.error}</p>` : nothing}
       </ha-card>
     `;
+  }
+
+  private renderQuickPause() {
+    return html`<div class="quick-pause" role="group" aria-label="Pause heating">
+      <span>Pause</span>
+      ${this.config!.duration.presets.map((minutes) => html`<button class="quick-duration" ?disabled=${!!this.pending}
+        aria-label=${`Pause heating for ${durationLabel(minutes)}`} aria-busy=${String(this.pending?.kind === "apply" && this.pending.minutes === minutes)}
+        @click=${() => { if (!this.pending) { this.choose(minutes); void this.apply(); } }}>${durationLabel(minutes)}${this.pending?.kind === "apply" && this.pending.minutes === minutes ? "…" : nothing}</button>`)}
+      ${this.renderDisclosure()}
+      <span class="sr-only" role="status">${this.pending?.kind === "apply" ? `Requesting ${durationLabel(this.pending.minutes!)} of heating pause. Showing reported state.` : nothing}</span>
+    </div>`;
+  }
+  private renderDisclosure() {
+    return html`<button class="open" aria-expanded=${String(this.open)} aria-controls="duration-picker" ?disabled=${!!this.pending}
+      @click=${() => { this.error = undefined; this.open = !this.open; }}>${this.open ? "Close" : this.pause ? "Custom" : "Set away"}</button>`;
   }
 
   private renderPicker() {
@@ -117,9 +133,9 @@ export class TimedAwayCard extends LitElement {
       <section class="picker" id="duration-picker" aria-label=${this.pause ? "Pause duration" : "Away duration"} @keydown=${(keyEvent: KeyboardEvent) => {
         if (keyEvent.key === "Escape" && !this.pending) { this.open = false; this.updateComplete.then(() => this.renderRoot.querySelector<HTMLButtonElement>(".open")?.focus()); }
       }}>
-        <div class="presets" role="group" aria-label=${this.pause ? "Pause duration presets" : "Away duration presets"}>
+        ${this.pause ? nothing : html`<div class="presets" role="group" aria-label="Away duration presets">
           ${duration.presets.map((minutes) => html`<button ?disabled=${!!this.pending} aria-pressed=${String(this.validDuration && this.selectedMinutes === minutes)} @click=${() => this.choose(minutes)}>${durationLabel(minutes)}</button>`)}
-        </div>
+        </div>`}
         ${this.pause ? nothing : html`<label for="duration">Choose approximately</label>
           <input id="duration" type="range" min="0" max="100" step="0.1" ?disabled=${!!this.pending}
             aria-valuetext=${durationLabel(this.selectedMinutes)}
@@ -151,8 +167,7 @@ export class TimedAwayCard extends LitElement {
   }
   private renderSummaryAction(mode: TimedAwayMode) {
     if (mode === "schedule") {
-      return html`<button class="open" aria-expanded=${String(this.open)} aria-controls="duration-picker" ?disabled=${!!this.pending}
-        @click=${() => { this.error = undefined; this.open = !this.open; }}>${this.open ? "Close" : this.pause ? "Pause heating" : "Set away"}</button>`;
+      return this.pause ? nothing : this.renderDisclosure();
     }
     if (mode === "restoring") return html`<span class="working" aria-live="polite">Restoring…</span>`;
     const active = mode === "away" || mode === "paused";
@@ -185,7 +200,7 @@ export class TimedAwayCard extends LitElement {
   private formatEndsAt(value: unknown): string {
     return typeof value === "string" && Number.isFinite(Date.parse(value)) ? formatEndTime(new Date(value), this.hass) : "the saved end time";
   }
-  getCardSize(): number { return this.open ? 6 : 2; }
+  getCardSize(): number { return this.open ? this.pause ? 4 : 6 : 2; }
   getGridOptions() { return { columns: "full", rows: "auto" }; }
 
   static styles = css`
@@ -193,17 +208,20 @@ export class TimedAwayCard extends LitElement {
     * { box-sizing:border-box; }
     ha-card { display:block; background:var(--card-background-color,#171717); }
     .summary { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:8px 12px; }
-    h2,h3,p { margin:0; }
+    h2,p { margin:0; }
     h2 { font-size:16px; }
     .copy span { display:block; margin-top:3px; color:var(--secondary-text-color,#aaa); font-size:12px; }
     button { min-height:44px; border:1px solid var(--divider-color,#444); border-radius:10px; padding:0 12px; color:inherit; background:transparent; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
-    .open,.apply { color:#151515; border-color:var(--primary-color,#ff9f32); background:var(--primary-color,#ff9f32); }
-    .open[aria-expanded="true"] { color:inherit; border-color:var(--divider-color,#444); background:transparent; }
+    .apply,.summary .open { color:#151515; border-color:var(--primary-color,#ff9f32); background:var(--primary-color,#ff9f32); }
+    .summary .open[aria-expanded="true"] { color:inherit; border-color:var(--divider-color,#444); background:transparent; }
     .cancel { color:var(--warning-color,#ffb74d); }
     .working { color:var(--secondary-text-color,#aaa); font-size:12px; font-weight:600; }
     .summary[data-mode="fault"] h2,.summary[data-mode="mismatch"] h2 { color:var(--error-color,#ff6659); }
     .picker { display:grid; gap:8px; padding:8px 12px 12px; border-top:1px solid var(--divider-color,#444); }
-    h3 { font-size:15px; margin-top:12px; }
+    .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+    .quick-pause { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:0 12px 8px; }
+    .quick-pause > span { margin-right:4px; font-size:13px; color:var(--secondary-text-color,#aaa); }
+    .quick-pause button { min-width:44px; padding:0 8px; }
     .presets { display:flex; flex-wrap:wrap; gap:6px; }
     .presets button { flex:1; }
     .presets button[aria-pressed="true"] { border-color:var(--primary-color,#ff9f32); background:color-mix(in srgb,var(--primary-color,#ff9f32) 18%,transparent); }
