@@ -11,20 +11,20 @@ if (!customElements.get("ha-icon")) customElements.define("ha-icon", class exten
 
 const attrs = (percentage = 68, modes = ["color_temp", "xy"]) => ({ supported_color_modes: modes, brightness: Math.round(percentage * 255 / 100), min_color_temp_kelvin: 2000, max_color_temp_kelvin: 6500, color_temp_kelvin: 3000, color_mode: "color_temp", hs_color: [210,60] });
 const states = {
-  "light.example_room": { entity_id: "light.example_room", state: "on", attributes: attrs(72) },
-  "light.example_ceiling": { entity_id: "light.example_ceiling", state: "on", attributes: attrs(68) },
-  "light.example_tower": { entity_id: "light.example_tower", state: "on", attributes: attrs(75, ["color_temp"]) },
-  "light.example_strip": { entity_id: "light.example_strip", state: "on", attributes: { ...attrs(60), color_mode: "xy" } },
-  "light.example_kitchen": { entity_id: "light.example_kitchen", state: "on", attributes: attrs(58, ["color_temp"]) },
-  "light.example_bedroom": { entity_id: "light.example_bedroom", state: "off", attributes: { ...attrs(0), brightness: null, color_temp_kelvin: null, hs_color: null } },
-  "light.example_kids": { entity_id: "light.example_kids", state: "on", attributes: attrs(90) },
-  "light.example_study": { entity_id: "light.example_study", state: "on", attributes: attrs(75) },
-  "light.example_offline": { entity_id: "light.example_offline", state: "unavailable", attributes: attrs() },
-  "light.example_fixed": { entity_id: "light.example_fixed", state: "on", attributes: attrs(50, ["brightness"]) },
-  "light.example_white": { entity_id: "light.example_white", state: "on", attributes: attrs(60, ["color_temp"]) },
-  "light.example_plug": { entity_id: "light.example_plug", state: "off", attributes: { supported_color_modes: ["onoff"], icon: "mdi:power-socket-uk" } },
-  "select.example_room_scene": { entity_id: "select.example_room_scene", state: "unknown", attributes: { options: ["Relax", "Read", "Evening"] } },
-  "select.example_bedroom_scene": { entity_id: "select.example_bedroom_scene", state: "unknown", attributes: { options: ["Relax", "Read"] } }
+  "light.example_zone_a_group": { entity_id: "light.example_zone_a_group", state: "on", attributes: attrs(72) },
+  "light.example_zone_a_light_a": { entity_id: "light.example_zone_a_light_a", state: "on", attributes: attrs(68) },
+  "light.example_zone_a_light_b": { entity_id: "light.example_zone_a_light_b", state: "on", attributes: attrs(75, ["color_temp"]) },
+  "light.example_zone_a_light_c": { entity_id: "light.example_zone_a_light_c", state: "on", attributes: { ...attrs(60), color_mode: "xy" } },
+  "light.example_zone_b_group": { entity_id: "light.example_zone_b_group", state: "on", attributes: attrs(58, ["color_temp"]) },
+  "light.example_zone_c_group": { entity_id: "light.example_zone_c_group", state: "off", attributes: { ...attrs(0), brightness: null, color_temp_kelvin: null, hs_color: null } },
+  "light.example_zone_d_light": { entity_id: "light.example_zone_d_light", state: "on", attributes: attrs(90) },
+  "light.example_zone_e_light": { entity_id: "light.example_zone_e_light", state: "on", attributes: attrs(75) },
+  "light.example_zone_f_light": { entity_id: "light.example_zone_f_light", state: "unavailable", attributes: attrs() },
+  "light.example_fixed_dimmer": { entity_id: "light.example_fixed_dimmer", state: "on", attributes: attrs(50, ["brightness"]) },
+  "light.example_white_dimmer": { entity_id: "light.example_white_dimmer", state: "on", attributes: attrs(60, ["color_temp"]) },
+  "light.example_socket": { entity_id: "light.example_socket", state: "off", attributes: { supported_color_modes: ["onoff"], icon: "mdi:power-socket-uk" } },
+  "select.example_zone_a_scene": { entity_id: "select.example_zone_a_scene", state: "unknown", attributes: { options: ["Relax", "Read", "Evening"] } },
+  "select.example_zone_c_scene": { entity_id: "select.example_zone_c_scene", state: "unknown", attributes: { options: ["Relax", "Read"] } }
 };
 window.previewCalls = [];
 window.previewFailNext = false;
@@ -84,16 +84,16 @@ const row = (entity, name, scene_entity, cards) => {
   card.hass = makeHass();
   return card;
 };
-const living = row("light.example_room", "Living", "select.example_room_scene", [
-  { type: "custom:alx-light-row-card", entity: "light.example_ceiling", name: "Ceiling" },
-  { type: "custom:alx-light-row-card", entity: "light.example_tower", name: "Tower" },
-  { type: "custom:alx-light-row-card", entity: "light.example_strip", name: "TV strip" },
+const living = row("light.example_zone_a_group", "Zone A", "select.example_zone_a_scene", [
+  { type: "custom:alx-light-row-card", entity: "light.example_zone_a_light_a", name: "Light A" },
+  { type: "custom:alx-light-row-card", entity: "light.example_zone_a_light_b", name: "Light B" },
+  { type: "custom:alx-light-row-card", entity: "light.example_zone_a_light_c", name: "Light C" },
 ]);
 grid.append(living);
 const second = document.createElement("section");
-second.append(row("light.example_kitchen", "Kitchen"), row("light.example_bedroom", "Bedroom", "select.example_bedroom_scene"), row("light.example_kids", "Kids’ room"), row("light.example_study", "Study"), row("light.example_offline", "Hallway"));
+second.append(row("light.example_zone_b_group", "Zone B"), row("light.example_zone_c_group", "Zone C", "select.example_zone_c_scene"), row("light.example_zone_d_light", "Zone D"), row("light.example_zone_e_light", "Zone E"), row("light.example_zone_f_light", "Zone F"));
 grid.append(second);
 const footer = document.createElement("details"); footer.className = "room";
-const footerSummary = document.createElement("summary"); footerSummary.className = "quiet"; footerSummary.textContent = "Unassigned lights"; footer.append(footerSummary, row("light.example_fixed", "Fixed white"), row("light.example_white", "Adjustable white"), row("light.example_plug", "Lighting plug"));
+const footerSummary = document.createElement("summary"); footerSummary.className = "quiet"; footerSummary.textContent = "Unassigned lights"; footer.append(footerSummary, row("light.example_fixed_dimmer", "Fixed white"), row("light.example_white_dimmer", "Adjustable white"), row("light.example_socket", "Lighting plug"));
 grid.append(footer); main.append(grid);
 document.querySelector("#theme").addEventListener("click", () => document.documentElement.classList.toggle("light"));

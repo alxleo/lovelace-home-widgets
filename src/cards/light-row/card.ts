@@ -14,7 +14,7 @@ export class LightRowCard extends LitElement {
     await import("./editor");
     return document.createElement("alx-light-row-card-editor") as LovelaceCardEditor;
   }
-  static getStubConfig(): Record<string, unknown> { return { type: "custom:alx-light-row-card", entity: "light.example_ceiling" }; }
+  static getStubConfig(): Record<string, unknown> { return { type: "custom:alx-light-row-card", entity: "light.example_zone_a_light_a" }; }
   @property({ attribute: false }) hass?: HomeAssistant;
   @state() private config?: LightRowConfig;
   @state() private open = false;

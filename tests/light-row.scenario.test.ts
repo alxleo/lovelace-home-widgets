@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { available, brightness, capabilities, confirmed, displayLightName, lightCommand, parseLightRowConfig, readbackFingerprint } from "../src/cards/light-row/model";
-const current = { entity_id: "light.example_ceiling", state: "on", attributes: { supported_color_modes: ["color_temp", "xy"], brightness: 173, color_temp_kelvin: 3000, color_mode: "color_temp", min_color_temp_kelvin: 2000, max_color_temp_kelvin: 6500, hs_color: [210,60] } };
+const current = { entity_id: "light.example_zone_a_light_a", state: "on", attributes: { supported_color_modes: ["color_temp", "xy"], brightness: 173, color_temp_kelvin: 3000, color_mode: "color_temp", min_color_temp_kelvin: 2000, max_color_temp_kelvin: 6500, hs_color: [210,60] } };
 describe("compact light row", () => {
   it("scenario: room scenes require explicit group scope and native select ownership", () => {
-    expect(() => parseLightRowConfig({ type: "custom:alx-light-row-card", entity: current.entity_id, scene_entity: "select.example_room_scene" })).toThrow(/group/);
-    expect(parseLightRowConfig({ type: "custom:alx-light-row-card", entity: current.entity_id, group: true, scene_entity: "select.example_room_scene" }).group).toBe(true);
+    expect(() => parseLightRowConfig({ type: "custom:alx-light-row-card", entity: current.entity_id, scene_entity: "select.example_zone_a_scene" })).toThrow(/group/);
+    expect(parseLightRowConfig({ type: "custom:alx-light-row-card", entity: current.entity_id, group: true, scene_entity: "select.example_zone_a_scene" }).group).toBe(true);
     expect(() => parseLightRowConfig({ type: "custom:alx-light-row-card", entity: current.entity_id, group: true, scene_entity: "script.example_apply_timed_away" })).toThrow();
   });
   it("scenario: fixed-white and on-off lights expose only real capabilities, and unavailable fails closed", () => {
@@ -26,8 +26,8 @@ describe("compact light row", () => {
     expect(lightCommand({ ...current, attributes: { ...current.attributes, hs_color: null } }, "saturation", 60)).toBeUndefined();
   });
   it("scenario: room-relative names retain identity without changing native ids", () => {
-    expect(displayLightName("Living TVStrip", "Living ")).toBe("TV Strip");
-    expect(displayLightName("Kitchen_1", "Kitchen ")).toBe("Light 1");
+    expect(displayLightName("Zone A RGBStrip", "Zone A ")).toBe("RGB Strip");
+    expect(displayLightName("Zone A_1", "Zone A ")).toBe("Light 1");
   });
   it("scenario: one-step changes require changed relevant readback, including colour-mode transitions", () => {
     const request = lightCommand(current, "white", 3050)!.expected;
