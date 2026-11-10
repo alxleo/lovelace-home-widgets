@@ -6,3 +6,6 @@ artifacts/
 playwright-report/
 test-results/
 .DS_Store
+
+# Local design evidence can include private consuming-dashboard captures.
+/design-qa.md

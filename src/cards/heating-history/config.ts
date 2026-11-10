@@ -13,6 +13,7 @@ export interface HistorySeriesConfig {
   label: string;
   attribute?: string;
   color?: string;
+  room?: string;
 }
 
 export interface HeatingHistoryCardConfig {
@@ -20,6 +21,7 @@ export interface HeatingHistoryCardConfig {
   title?: string;
   default_scale: Scale;
   series: HistorySeriesConfig[];
+  temperature_controls: boolean;
 }
 
 const KINDS = new Set<HistorySeriesKind>([
@@ -60,13 +62,18 @@ export const parseHistoryConfig = (input: unknown): HeatingHistoryCardConfig => 
       label: text(raw.label, `series[${index}].label`),
       attribute: raw.attribute === undefined ? undefined : text(raw.attribute, `series[${index}].attribute`),
       color: raw.color === undefined ? undefined : text(raw.color, `series[${index}].color`),
+      room: raw.room === undefined ? undefined : text(raw.room, `series[${index}].room`),
     };
   });
+  if (input.temperature_controls !== undefined && typeof input.temperature_controls !== "boolean") {
+    throw new Error("temperature_controls must be true or false");
+  }
   return {
     type: "custom:alx-heating-history-card",
     title: input.title === undefined ? "Heating history" : text(input.title, "title"),
     default_scale: scale,
     series,
+    temperature_controls: input.temperature_controls === true,
   };
 };
 

@@ -13,7 +13,8 @@ export interface HomeAssistant {
     data?: Record<string, unknown>,
     target?: Record<string, unknown>,
   ): Promise<unknown>;
-  config?: { unit_system?: { temperature?: string } };
+  config?: { unit_system?: { temperature?: string }; time_zone?: string };
+  locale?: { language?: string; time_format?: "12" | "24" | "language" | "system"; time_zone?: "local" | "server" };
 }
 
 export interface LovelaceCardEditor extends HTMLElement {

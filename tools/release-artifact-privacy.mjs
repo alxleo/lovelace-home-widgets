@@ -7,6 +7,7 @@ import { inflateSync } from "node:zlib";
 const EXPECTED_SCREENSHOTS = [
   "history-day-earlier-dark.png",
   "history-day-now-dark.png",
+  "history-day-now-light.png",
   "history-touch-inspection-dark.png",
   "history-week-bright-theme.png",
   "pc-power-countdown.png",

@@ -7,121 +7,147 @@ test.beforeAll(() => {
   mkdirSync("artifacts/screenshots", { recursive: true });
 });
 
-test("scenario: mobile day history is dense, direct-labelled and scrolls into the previous day", async ({ page }) => {
+test("scenario: room journals show current and target, inspect without reflow and page earlier", async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.goto("/preview/");
   const card = page.locator("alx-heating-history-card");
-  await expect(card).toBeVisible();
-  await expect(card.locator(".direct-label")).toHaveCount(4);
-  await expect(card.locator('[data-kind="precipitation"]')).not.toHaveCount(0);
-  const box = await card.boundingBox();
-  expect(box?.width).toBeLessThanOrEqual(390);
-  const timelineBox = await card.locator(".timeline").boundingBox();
-  for (const label of await card.locator(".direct-label").all()) {
-    const labelBox = await label.boundingBox();
-    expect(labelBox?.y).toBeGreaterThanOrEqual(timelineBox!.y);
-    expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(timelineBox!.y + timelineBox!.height);
-  }
-  const timeBoxes = await Promise.all((await card.locator(".time-label").all()).map((label) => label.boundingBox()));
-  const timeRight = Math.max(...timeBoxes.map((label) => label!.x + label!.width));
-  const requestBox = await card.locator('[data-kind="heating-request"] rect').first().boundingBox();
-  expect(requestBox!.x).toBeGreaterThan(timeRight);
-  expect(requestBox!.width).toBeGreaterThan(timelineBox!.width * .65);
-  expect(requestBox!.height).toBeGreaterThan(1);
-  const outdoors = await card.locator('polyline[data-kind="outdoor_temperature"]').boundingBox();
-  const indoors = await card.locator('polyline[data-kind="actual_temperature"]').first().boundingBox();
-  expect(outdoors!.x + outdoors!.width).toBeLessThan(indoors!.x);
-  const beforeHover = await card.locator('.timeline').boundingBox();
-  const targetSeries = card.locator('[data-kind="target_temperature"] .series');
-  await expect.poll(() => targetSeries.count()).toBeGreaterThanOrEqual(2);
-  const targetPath = await targetSeries.first().getAttribute("d");
-  expect(targetPath).toMatch(/V .* H /);
-  expect(targetPath).not.toContain("L");
-  for (const interval of await card.locator('[data-kind="heating-request"] .request').all()) {
-    expect(Number(await interval.getAttribute("width"))).toBeGreaterThan(200);
-  }
-  await expect(card.locator('[data-label="heating-request"]')).toHaveCount(0);
+  await expect(card.locator(".room")).toHaveCount(2);
+  await expect(card.locator(".window")).toContainText("Last 24 hours");
+  await expect(card.locator(".room").first()).toContainText("Now");
+  await expect(card.locator(".room").first()).toContainText("Set");
+  await expect.poll(() => card.locator(".heat-band").count()).toBeGreaterThan(0);
+  expect(Number(await card.locator(".heat-band").first().getAttribute("height"))).toBeGreaterThan(100);
+  expect(await card.locator(".target-line").first().getAttribute("d")).toMatch(/H .* V /);
   await page.screenshot({ path: "artifacts/screenshots/history-day-now-dark.png" });
-
-  await page.mouse.move(timelineBox!.x + timelineBox!.width * .55, timelineBox!.y + timelineBox!.height * .45);
-  const inspector = card.locator(".inspector");
-  await expect(inspector).toBeVisible();
-  const afterHover = await card.locator('.timeline').boundingBox();
-  expect(afterHover!.y).toBeCloseTo(beforeHover!.y, 1);
-  expect(afterHover!.height).toBeCloseTo(beforeHover!.height, 1);
-  await expect(inspector).toContainText("Zone A");
-  await expect(inspector).toContainText(/Rain \d+\.\d mm \(estimated\)/);
-  await expect(inspector).not.toContainText("Rain est.");
-  const inspectorGeometry = await inspector.evaluate((element) => ({
-    clientWidth: element.clientWidth,
-    scrollWidth: element.scrollWidth,
-  }));
-  expect(inspectorGeometry.scrollWidth).toBeLessThanOrEqual(inspectorGeometry.clientWidth);
-  await page.evaluate(() => window.scrollTo(0, 0));
-  expect((await card.boundingBox())!.y).toBeGreaterThanOrEqual(0);
+  const chart = card.locator(".chart").first();
+  const before = await card.boundingBox();
+  await chart.focus();
+  await chart.press("ArrowLeft");
+  await expect(card.locator(".inspection").first()).toContainText("actual");
+  await expect(card.locator(".inspection").first()).toContainText(/Request: (on|off|unknown)/);
+  expect((await card.boundingBox())!.height).toBeCloseTo(before!.height, 1);
   await page.screenshot({ path: "artifacts/screenshots/history-touch-inspection-dark.png" });
-  await card.locator("svg").dispatchEvent("pointerleave");
-  await expect(inspector).toBeHidden();
-
-  const before = await card.locator("header span").textContent();
-  const beforeHeight = await card.locator(".timeline").evaluate((element) => element.scrollHeight);
-  await card.locator(".timeline").evaluate((element) => {
-    element.scrollTop = 0;
-    element.dispatchEvent(new Event("scroll"));
-  });
-  await expect.poll(() => card.locator("header span").textContent()).not.toBe(before);
-  const anchor = await card.locator(".timeline").evaluate((element) => ({
-    scrollTop: element.scrollTop,
-    addedHeight: element.scrollHeight,
-  }));
-  expect(Math.abs(anchor.scrollTop - (anchor.addedHeight - beforeHeight))).toBeLessThanOrEqual(2);
-  await expect(card.locator(".direct-label")).toHaveCount(4);
-  await card.evaluate((element) => element.scrollIntoView({ block: "start" }));
+  await chart.press("Escape");
+  await card.getByRole("button", { name: "Earlier history", exact: true }).click();
+  await expect(card.locator(".window")).not.toContainText("Last 24 hours");
+  await expect(card.getByRole("button", { name: "Later history", exact: true })).toBeEnabled();
   await page.screenshot({ path: "artifacts/screenshots/history-day-earlier-dark.png" });
+  await card.getByRole("button", { name: "Later history", exact: true }).click();
+  await expect(card.locator(".window")).toContainText("Last 24 hours");
+  expect(browserErrors).toEqual([]);
 });
 
-test("scenario: week scale remains scrollable and readable in light theme", async ({ page }) => {
+test("scenario: week and weather disclosure retain separate units without nested scroll", async ({ page }) => {
   await page.goto("/preview/");
   await page.locator("#theme").click();
   const card = page.locator("alx-heating-history-card");
-  await card.getByRole("button", { name: "Week" }).click();
-  await expect(card.getByRole("button", { name: "Week" })).toHaveAttribute("aria-pressed", "true");
-  const timeline = card.locator(".timeline");
-  await expect(timeline).toHaveCSS("overflow-y", "auto");
-  const target = await card.locator('[data-label="target_temperature"]').boundingBox();
-  const lastTime = await card.locator(".time-label").last().boundingBox();
-  const timelineBox = await timeline.boundingBox();
-  expect(target!.y + target!.height).toBeLessThanOrEqual(timelineBox!.y + timelineBox!.height);
-  expect(lastTime!.y + lastTime!.height).toBeLessThanOrEqual(timelineBox!.y + timelineBox!.height);
+  await page.screenshot({ path: "artifacts/screenshots/history-day-now-light.png" });
+  await card.getByRole("button", { name: "Week", exact: true }).click();
+  await expect(card.locator(".window")).toContainText("Last 7 days");
+  await card.locator(".weather summary").click();
+  await expect(card.locator(".weather-charts")).toBeVisible();
+  await expect(card.locator(".weather summary")).toContainText("latest estimate");
+  await expect(card.locator(".timeline")).toHaveCount(0);
   await page.screenshot({ path: "artifacts/screenshots/history-week-bright-theme.png" });
 });
 
-test("scenario: history zoom and viewport resize preserve the selected range and visible labels", async ({ page }) => {
+test("scenario: native target action waits for readback, reports refusal and respects bounds", async ({ page }) => {
   await page.goto("/preview/");
   const card = page.locator("alx-heating-history-card");
-  const timeline = card.locator(".timeline");
-  for (let pageIndex = 0; pageIndex < 2; pageIndex += 1) {
-    const height = await timeline.evaluate((element) => element.scrollHeight);
-    await timeline.evaluate((element) => { element.scrollTop = 0; element.dispatchEvent(new Event("scroll")); });
-    await expect.poll(() => timeline.evaluate((element) => element.scrollHeight)).toBeGreaterThan(height);
-  }
-  for (const scale of ["Week", "Day"]) {
-    await card.getByRole("button", { name: scale }).click();
-    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    await expect(card.locator("svg")).toHaveCSS("height", "590px");
-  }
-  await page.setViewportSize({ width: 390, height: 600 });
-  await expect(timeline).toHaveCSS("height", "420px");
-  await expect.poll(async () => {
-    const bounds = (await timeline.boundingBox())!;
-    const labels = await card.locator(".direct-label").all();
-    return (await Promise.all(labels.map((label) => label.boundingBox())))
-      .every((box) => box && box.y >= bounds.y && box.y + box.height <= bounds.y + bounds.height);
-  }).toBe(true);
+  const room = card.locator(".room").first();
+  await page.evaluate(() => { window.previewDeferNext = true; });
+  await room.locator(".temperature-plus").click();
+  await expect(room.locator(".set")).toContainText("Confirming");
+  await expect(room.locator(".set-value strong")).toHaveText("21.0°C");
+  await expect(room.locator(".temperature-plus")).toBeDisabled();
+  await page.evaluate(() => window.previewFinishDeferred());
+  await expect(room.locator(".set-value strong")).toHaveText("21.5°C");
+  expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({ domain: "climate", service: "set_temperature", data: { entity_id: "climate.example_zone_a", temperature: 21.5 } });
+  await page.evaluate(() => { window.previewFailNext = true; });
+  await room.locator(".temperature-minus").click();
+  await expect(room.getByRole("alert")).toContainText("Couldn't change");
+  await expect(room.locator(".set-value strong")).toHaveText("21.5°C");
+  for (let step = 0; step < 4; step++) await room.locator(".temperature-plus").click();
+  await expect(room.locator(".set-value strong")).toHaveText("23.5°C");
+  await expect(room.locator(".temperature-plus")).toBeDisabled();
+  await page.setViewportSize({ width: 1000, height: 844 });
+  await page.locator("main").evaluate((element) => { element.style.width = "940px"; });
+  const rooms = await card.locator(".room").all();
+  expect((await rooms[0]!.boundingBox())!.y).toBeCloseTo((await rooms[1]!.boundingBox())!.y, 1);
+});
+
+test("scenario: accepted target action without device readback times out without optimistic success", async ({ page }) => {
+  await page.goto("/preview/");
+  const card = page.locator("alx-heating-history-card");
+  const room = card.locator(".room").first();
+  await expect(room.locator(".temperature-plus")).toBeEnabled();
+  await page.clock.install();
+  await page.evaluate(() => { window.previewSuppressReadback = true; });
+  await room.locator(".temperature-plus").click();
+  await expect(room.locator(".set-value strong")).toHaveText("21.0°C");
+  await page.clock.fastForward(10001);
+  await expect(room.getByRole("alert")).toContainText("No device confirmation");
+  await expect(room.locator(".set-value strong")).toHaveText("21.0°C");
+  await expect(room.locator(".temperature-plus")).toBeEnabled();
+});
+
+test("scenario: detached journals reconnect and a refreshed historical window returns to current latest", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/preview/");
+  const card = page.locator("alx-heating-history-card");
+  await expect(card.locator(".actual-line").first()).toBeVisible();
+  await card.evaluate(async (element) => {
+    const instance = element as HeatingHistoryCard;
+    const healthy = instance.hass!;
+    let complete!: (response: Record<string, never[]>) => void;
+    const pending = new Promise<Record<string, never[]>>((resolve) => { complete = resolve; });
+    instance.hass = { ...healthy, callWS: async <T>() => await pending as T };
+    instance.shadowRoot!.querySelector<HTMLButtonElement>('[aria-label="Earlier history"]')!.click();
+    await instance.updateComplete;
+    const parent = instance.parentElement!;
+    instance.remove(); instance.hass = healthy; parent.append(instance);
+    await instance.updateComplete;
+    complete({});
+  });
+  await expect(card.locator(".actual-line").first()).toBeVisible();
+  await expect(card.getByRole("button", { name: "Week", exact: true })).toBeEnabled();
+  await card.getByRole("button", { name: "Earlier history", exact: true }).click();
+  const previous = await card.locator(".window span").textContent();
+  const latestEnd = await card.evaluate((element) => (element as unknown as { controller: { loadedRange: { end: number } } }).controller.loadedRange.end);
+  await page.clock.fastForward(30001);
+  await expect.poll(() => card.evaluate((element) => (element as unknown as { controller: { loadedRange: { end: number } } }).controller.loadedRange.end)).toBeGreaterThan(latestEnd);
+  await expect(card.locator(".window span")).toHaveText(previous!);
+  await card.getByRole("button", { name: "Later history", exact: true }).click();
+  await expect(card.locator(".window")).toContainText("Last 24 hours");
+  await expect(card.getByRole("button", { name: "Later history", exact: true })).toBeDisabled();
+});
+
+test("scenario: late rejection from an expired request cannot clear a newer target request", async ({ page }) => {
+  await page.goto("/preview/");
+  const card = page.locator("alx-heating-history-card");
+  const room = card.locator(".room").first();
+  await expect(room.locator(".temperature-plus")).toBeEnabled();
+  await page.clock.install();
+  await card.evaluate((element) => {
+    const instance = element as HeatingHistoryCard;
+    window.previewRejections = [];
+    instance.hass = { ...instance.hass!, callService: () => new Promise((_, reject) => window.previewRejections.push(() => reject(new Error("Expired request rejected")))) };
+  });
+  await room.locator(".temperature-plus").click();
+  await page.clock.fastForward(10001);
+  await expect(room.getByRole("alert")).toContainText("No device confirmation");
+  await room.locator(".temperature-plus").click();
+  await page.evaluate(() => window.previewRejections[0]!());
+  await expect(room.locator(".set")).toContainText("Confirming");
+  await expect(room.locator(".temperature-plus")).toBeDisabled();
+  await expect(room.getByRole("alert")).toHaveCount(0);
 });
 
 test("scenario: removing history during its first request leaves no observing resource", async ({ page }) => {
   await page.goto("/preview/");
-  await expect(page.locator("alx-heating-history-card svg")).toBeVisible();
+  await expect(page.locator("alx-heating-history-card svg").first()).toBeVisible();
   const observing = await page.evaluate(async () => {
     let complete!: (response: Record<string, never[]>) => void;
     const pending = new Promise<Record<string, never[]>>((resolve) => { complete = resolve; });
@@ -286,6 +312,8 @@ declare global {
   interface Window {
     previewCalls: Array<Record<string, unknown>>;
     previewFailNext: boolean;
+    previewSuppressReadback: boolean;
+    previewRejections: Array<() => void>;
     previewDeferNext: boolean;
     previewSetAwayState: (mode: string, timerState?: string, finishesAt?: string) => void;
     previewFinishDeferred: (reject?: boolean) => void;

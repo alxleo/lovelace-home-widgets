@@ -3,6 +3,7 @@ cards:
   - type: custom:alx-heating-history-card
     title: Heating history
     default_scale: day
+    temperature_controls: false # explicitly opt in to native target actions
     series:
       - kind: actual_temperature
         entity: climate.example_zone_a
@@ -13,6 +14,12 @@ cards:
       - kind: actual_temperature
         entity: climate.example_zone_b
         label: Zone B
+      - kind: target_temperature
+        entity: climate.example_zone_b
+        label: Target
+      - kind: heating_request
+        entity: climate.example_zone_b
+        label: Heat
       - kind: heating_request
         entity: climate.example_zone_a
         label: Heat

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DAY_MS, MAX_FETCH_SPAN, ScrollHistoryController, type HistoryBatch, type TimeRange } from "../src/shared/history-model";
-import { placeDirectLabel, type LabelRect } from "../src/shared/label-layout";
 import { fetchHistory } from "../src/cards/heating-history/ha-history";
 import { normalizeHistoryConfig, parseHistoryConfig, seriesId } from "../src/cards/heating-history/config";
 import type { HomeAssistant } from "../src/shared/home-assistant";
@@ -10,7 +9,7 @@ import { heldPointAt, heldStepPaths, heldTrueIntervals } from "../src/cards/heat
 const NOW = Date.parse("2026-08-30T14:00:00Z");
 
 describe("heating history", () => {
-  it("scenario: day and week are scroll scales while older pages are bounded and cached", async () => {
+  it("scenario: day and week are window scales while older pages are bounded and cached", async () => {
     const calls: TimeRange[] = [];
     const controller = new ScrollHistoryController("day", async (range) => {
       calls.push(range);
@@ -83,6 +82,41 @@ describe("heating history", () => {
     expect(controller.data.points("room", controller.loadedRange)).toEqual([{ time: NOW, value: 21 }]);
   });
 
+  it("scenario: live tail re-reads recorder overlap and retries the failed native operation", async () => {
+    let now = NOW;
+    let fail = false;
+    const calls: TimeRange[] = [];
+    const controller = new ScrollHistoryController("day", async (range) => {
+      calls.push(range);
+      if (fail) throw new Error("recorder unavailable");
+      return { room: [{ time: range.end, value: 21.5 }] };
+    }, () => now);
+    await controller.loadInitial();
+    now += 30000;
+    fail = true;
+    await controller.refreshLatest();
+    expect(controller.status).toBe("error");
+    await controller.retry();
+    expect(calls).toHaveLength(3);
+    expect(controller.status).toBe("error");
+    fail = false;
+    await controller.retry();
+    expect(controller.loadedRange.end).toBe(now);
+    expect(calls.at(-1)).toEqual({ start: NOW - 120000, end: now });
+    expect(controller.data.points("room", { start: NOW, end: now }).at(-1)?.value).toBe(21.5);
+    fail = true;
+    const previousStart = controller.loadedRange.start;
+    await controller.loadEarlier();
+    const beforeRetry = calls.length;
+    await controller.retry();
+    expect(calls.length).toBe(beforeRetry + 1);
+    expect(controller.status).toBe("error");
+    fail = false;
+    await controller.retry();
+    expect(controller.loadedRange.start).toBe(previousStart - DAY_MS);
+    controller.dispose();
+  });
+
   it("scenario: target and heating request remain held through transitions including true to false", () => {
     const target = [
       { time: 0, value: 18 },
@@ -90,7 +124,7 @@ describe("heating history", () => {
       { time: 20, value: 19 },
     ];
     expect(heldStepPaths(target, (value) => value, (time) => time, 30))
-      .toEqual(["M 18,0 V 10 H 21 V 20 H 19 V 30"]);
+      .toEqual(["M 0,18 H 10 V 21 H 20 V 19 H 30"]);
 
     const targetWithGap = [
       { time: 0, value: 18 },
@@ -100,8 +134,8 @@ describe("heating history", () => {
       { time: 25, value: null },
     ];
     expect(heldStepPaths(targetWithGap, (value) => value, (time) => time, 30)).toEqual([
-      "M 18,0 V 10 H 21 V 15",
-      "M 19,20 V 25",
+      "M 0,18 H 10 V 21 H 15",
+      "M 20,19 H 25",
     ]);
     expect(heldPointAt(targetWithGap, 30)?.value).toBeNull();
 
@@ -183,9 +217,5 @@ describe("heating history", () => {
       future_container_key: "preserved",
     });
 
-    const occupied: LabelRect[] = [];
-    const first = placeDirectLabel(90, 50, 30, 10, { left: 0, right: 120, top: 0, bottom: 100 }, occupied);
-    const second = placeDirectLabel(90, 50, 30, 10, { left: 0, right: 120, top: 0, bottom: 100 }, occupied);
-    expect(second.baseline).not.toBe(first.baseline);
   });
 });

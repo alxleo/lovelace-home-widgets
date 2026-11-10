@@ -101,6 +101,7 @@ export class ScrollHistoryController {
   error?: string;
   private request?: AbortController;
   private requestSequence = 0;
+  private failedOperation?: "earlier" | "refresh";
   private readonly listeners = new Set<Listener>();
 
   constructor(
@@ -121,6 +122,7 @@ export class ScrollHistoryController {
   async setScale(scale: Scale): Promise<void> {
     this.request?.abort();
     this.scale = scale;
+    this.failedOperation = undefined;
     const end = this.now();
     this.loadedRange = { start: end - SCALE_SPANS[scale], end };
     this.emit();
@@ -137,6 +139,7 @@ export class ScrollHistoryController {
     const start = previousStart - SCALE_SPANS[this.scale];
     if (!Number.isFinite(start)) return 0;
     const current = await this.load({ start, end: previousStart });
+    this.failedOperation = !current && this.status === "error" ? "earlier" : undefined;
     if (current) {
       this.loadedRange = { start, end: this.loadedRange.end };
       this.emit();
@@ -146,15 +149,39 @@ export class ScrollHistoryController {
   }
 
   async retry(): Promise<void> {
-    await this.load(this.loadedRange);
+    if (this.failedOperation === "refresh") await this.refreshLatest();
+    else if (this.failedOperation === "earlier") await this.loadEarlier();
+    else await this.load(this.loadedRange);
   }
 
-  private async load(range: TimeRange): Promise<boolean> {
+  async refreshLatest(): Promise<boolean> {
+    if (this.status === "loading" || this.failedOperation === "earlier") return false;
+    const end = this.now();
+    if (end <= this.loadedRange.end) return false;
+    // Recorder commits can lag live state. Re-read the overlap rather than
+    // marking a just-accepted service command as historical fact.
+    const start = Math.max(this.loadedRange.start, this.loadedRange.end - 2 * 60_000);
+    const current = await this.load({ start, end }, true);
+    this.failedOperation = !current && this.status === "error" ? "refresh" : undefined;
+    if (current) {
+      this.loadedRange = { ...this.loadedRange, end };
+      this.emit();
+    }
+    return current;
+  }
+
+  dispose(): void {
+    this.requestSequence += 1;
+    this.request?.abort();
+    this.listeners.clear();
+  }
+
+  private async load(range: TimeRange, refresh = false): Promise<boolean> {
     this.request?.abort();
     const request = new AbortController();
     const sequence = ++this.requestSequence;
     this.request = request;
-    const missing = this.cache.missing(range).flatMap(splitBounded);
+    const missing = (refresh ? [range] : this.cache.missing(range)).flatMap(splitBounded);
     if (missing.length === 0) {
       this.status = "ready";
       this.error = undefined;

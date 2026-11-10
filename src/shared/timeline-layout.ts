@@ -1,23 +1,16 @@
 import type { Scale, TimeRange } from "./history-model";
 
-export const localTimelineMarks = (range: TimeRange, scale: Scale): number[] => {
-  const cursor = new Date(range.start);
-  if (scale === "week") {
-    cursor.setHours(0, 0, 0, 0);
-    if (cursor.getTime() < range.start) cursor.setDate(cursor.getDate() + 1);
-  } else {
-    const startedWithinBoundary = cursor.getMinutes() !== 0 || cursor.getSeconds() !== 0 || cursor.getMilliseconds() !== 0;
-    cursor.setMinutes(0, 0, 0);
-    const remainder = cursor.getHours() % 4;
-    if (remainder !== 0) cursor.setHours(cursor.getHours() + 4 - remainder);
-    else if (startedWithinBoundary) cursor.setHours(cursor.getHours() + 4);
-  }
-
+// Choose civil-clock boundaries in the same zone as the displayed labels.
+// Absolute quarter-hour stepping handles DST and half/quarter-hour offsets.
+export const localTimelineMarks = (range: TimeRange, scale: Scale, timeZone?: string): number[] => {
+  const clock = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone });
+  const quantum = 15 * 60_000;
   const marks: number[] = [];
-  while (cursor.getTime() <= range.end) {
-    marks.push(cursor.getTime());
-    if (scale === "week") cursor.setDate(cursor.getDate() + 1);
-    else cursor.setHours(cursor.getHours() + 4);
+  for (let time = Math.ceil(range.start / quantum) * quantum; time <= range.end; time += quantum) {
+    const parts = clock.formatToParts(time);
+    const hour = Number(parts.find((part) => part.type === "hour")?.value);
+    const minute = Number(parts.find((part) => part.type === "minute")?.value);
+    if (minute === 0 && (scale === "week" ? hour === 0 : hour % 4 === 0)) marks.push(time);
   }
   return marks;
 };
