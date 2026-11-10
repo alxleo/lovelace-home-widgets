@@ -27,6 +27,12 @@ export const valueFor = (
 ): number | boolean | null | undefined => {
   const normalizedState = state.trim().toLowerCase();
   if (["unknown", "unavailable"].includes(normalizedState)) return null;
+  // Some thermostats report a sentinel target (for example1°C) while off.
+  // Keep actual readings, but break target traces instead of scaling to it.
+  if (series.entity.startsWith("climate.") && normalizedState === "off") {
+    if (series.kind === "target_temperature") return null;
+    if (series.kind === "heating_request") return false;
+  }
   const attribute = defaultAttribute(series);
   const raw = attribute ? attributes[attribute] : state;
   if (raw === undefined) return undefined;

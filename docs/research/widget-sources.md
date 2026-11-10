@@ -75,3 +75,18 @@ are unchanged licensed [Material Design Icons7.4.47](https://www.npmjs.com/packa
 assets under `preview/icons`; production uses Home Assistant's native icon
 renderer and registry overrides. Private screenshots and household entities
 never enter the public repository.
+
+## Timed heating intent
+
+| Primary source | Adopted | Boundary |
+| --- | --- | --- |
+| [HA Timer](https://www.home-assistant.io/integrations/timer/) — locked documentation revision in the source board, Timer integration page under `source/_integrations/` | Timer-owned end time; active, idle and paused are distinct; expiry during downtime needs backend recovery | A timer returning idle does not distinguish expiry, cancellation or never-started. It cannot prove heating is following its schedule. |
+| [HA custom-card lifecycle](https://contributors.home-assistant.io/frontend/custom-ui/card/) | Report authoritative `hass` updates, native Sections automatic height and disconnect cleanup | Browser timeouts are confirmation feedback, never heating expiry/restore policy. |
+| Existing shipped timed-away surface and [WAI disclosure pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/) | One labelled button expands inline controls using `aria-expanded` / `aria-controls`; focus stays in the page | A modal sheet, overlay or second duration component is unnecessary for this small form. |
+
+The inline choice is a design judgment extending the shipped card. Exact minutes
+replace precision dragging for pause, while15m/30m/1h/2h serve routine use.
+Away retains its approximate scrubber. Pause has no duplicate duration readout,
+range prose or second dismissal. Pause
+terminology is opt-in; existing Away action/configuration remains valid. Both
+active modes are backend states, not inferred from an idle timer or service reply.

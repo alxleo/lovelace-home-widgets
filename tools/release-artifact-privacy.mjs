@@ -20,6 +20,8 @@ const EXPECTED_SCREENSHOTS = [
   "timed-away-failure.png",
   "timed-away-fault.png",
   "timed-away-picker.png",
+  "timed-pause-active.png",
+  "timed-pause-picker.png",
 ];
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const TEXTUAL_CHUNKS = new Set(["eXIf", "iTXt", "tEXt", "zTXt"]);

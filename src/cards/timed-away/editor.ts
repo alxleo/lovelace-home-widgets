@@ -3,9 +3,9 @@ import { customElement, property, state } from "lit/decorators.js";
 import { fireConfigChanged, type HomeAssistant } from "../../shared/home-assistant";
 import { parseTimedAwayConfig, type TimedAwayCardConfig } from "./model";
 
-type EditableKey = "title" | "start_action" | "cancel_action" | "mode_entity" | "mode_attribute" | "active_entity" | "ends_at_entity" | "duration_field" | "ends_at_attribute";
+type EditableKey = "title" | "intent" | "start_action" | "cancel_action" | "mode_entity" | "mode_attribute" | "active_entity" | "ends_at_entity" | "duration_field" | "ends_at_attribute";
 const FIELDS: Array<[EditableKey, string]> = [
-  ["title", "Title"], ["start_action", "Start action (domain.service)"],
+  ["title", "Title"], ["intent", "Intent (away or pause)"], ["start_action", "Start action (domain.service)"],
   ["cancel_action", "Resume/cancel action (domain.service)"], ["mode_entity", "Authoritative mode entity"],
   ["mode_attribute", "Mode attribute (optional)"],
   ["active_entity", "Legacy v0.1.0 active entity (optional)"],
@@ -31,7 +31,7 @@ export class TimedAwayEditor extends LitElement {
     if (!this.config) return html``;
     return html`${FIELDS.map(([key, label]) => html`
       <ha-textfield label=${label} .value=${this.draft[key] ?? String(this.config?.[key] ?? "")} data-key=${key} @input=${this.changed}></ha-textfield>
-    `)}${this.error ? html`<p role="alert">${this.error}</p>` : html`<p>Static action data remains available in YAML.</p>`}`;
+    `)}${this.error ? html`<p role="alert">${this.error}</p>` : html`<p>Duration bounds, presets and static action data remain available in YAML.</p>`}`;
   }
 
   private changed(inputEvent: Event): void {
@@ -42,8 +42,13 @@ export class TimedAwayEditor extends LitElement {
     try {
       const candidate: Record<string, unknown> = { ...this.config };
       for (const [draftKey, value] of Object.entries(this.draft)) candidate[draftKey] = value || undefined;
+      if (key === "intent" && candidate.intent !== this.config.intent) {
+        candidate.duration = undefined;
+        if (["Away", "Heating"].includes(String(candidate.title))) candidate.title = undefined;
+      }
       const parsed = parseTimedAwayConfig(candidate);
       this.config = parsed;
+      if (key === "intent") this.draft = { ...this.draft, title: parsed.title };
       this.error = undefined;
       fireConfigChanged(this, parsed);
     } catch (error) {

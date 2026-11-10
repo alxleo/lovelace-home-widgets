@@ -1,9 +1,18 @@
 import { splitAction } from "../../shared/home-assistant";
-import type { HassState } from "../../shared/home-assistant";
+import type { HassState, HomeAssistant } from "../../shared/home-assistant";
+
+export interface TimedDuration {
+  min_minutes: number;
+  max_minutes: number;
+  presets: number[];
+  default_minutes: number;
+}
 
 export interface TimedAwayCardConfig {
   type: "custom:alx-timed-away-card";
   title: string;
+  intent: "away" | "pause";
+  duration: TimedDuration;
   start_action: string;
   cancel_action: string;
   mode_entity?: string;
@@ -37,6 +46,17 @@ export const parseTimedAwayConfig = (input: unknown): TimedAwayCardConfig => {
   if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("card config must be an object");
   const raw = input as Record<string, unknown>;
   if (raw.type !== "custom:alx-timed-away-card") throw new Error("type must be custom:alx-timed-away-card");
+  const intent = raw.intent ?? "away";
+  if (intent !== "away" && intent !== "pause") throw new Error("intent must be away or pause");
+  const duration = object(raw.duration, "duration");
+  const min = duration.min_minutes ?? (intent === "pause" ? 1 : 30);
+  const max = duration.max_minutes ?? 2880;
+  const whole = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+  if (!whole(min) || !whole(max) || max <= min || max > 525600) throw new Error("duration bounds must be positive whole minutes with min < max <= 525600");
+  const presets = duration.presets ?? (intent === "pause" ? [15, 30, 60, 120] : [60, 240, 510]);
+  if (!Array.isArray(presets) || presets.length === 0 || presets.length > 6 || presets.some((value) => !whole(value) || value < min || value > max)) throw new Error("duration presets must contain 1–6 whole-minute values within bounds");
+  const defaultMinutes = duration.default_minutes ?? (intent === "pause" ? 60 : 510);
+  if (!whole(defaultMinutes) || defaultMinutes < min || defaultMinutes > max) throw new Error("duration default_minutes must be whole minutes within bounds");
   const startAction = required(raw.start_action, "start_action");
   const cancelAction = required(raw.cancel_action, "cancel_action");
   splitAction(startAction);
@@ -51,7 +71,9 @@ export const parseTimedAwayConfig = (input: unknown): TimedAwayCardConfig => {
   if (!/^[a-z][a-z0-9_]*$/.test(durationField)) throw new Error("duration_field must be a safe service-data key");
   return {
     type: "custom:alx-timed-away-card",
-    title: raw.title === undefined ? "Away" : required(raw.title, "title"),
+    title: raw.title === undefined ? (intent === "pause" ? "Heating" : "Away") : required(raw.title, "title"),
+    intent,
+    duration: { min_minutes: min, max_minutes: max, presets: [...new Set(presets)], default_minutes: defaultMinutes },
     start_action: startAction,
     cancel_action: cancelAction,
     mode_entity: modeEntity,
@@ -65,31 +87,18 @@ export const parseTimedAwayConfig = (input: unknown): TimedAwayCardConfig => {
   };
 };
 
-const ANCHORS = [
-  { position: 0, minutes: 30 },
-  { position: 35, minutes: 240 },
-  { position: 60, minutes: 510 },
-  { position: 80, minutes: 1440 },
-  { position: 100, minutes: 2880 },
-] as const;
+const AWAY_DURATION: TimedDuration = { min_minutes: 30, max_minutes: 2880, presets: [60, 240, 510], default_minutes: 510 };
 
-export const sliderToMinutes = (position: number): number => {
-  const clamped = Math.min(100, Math.max(0, position));
-  const upper = ANCHORS.find((anchor) => anchor.position >= clamped) ?? ANCHORS.at(-1)!;
-  const index = ANCHORS.indexOf(upper);
-  const lower = ANCHORS[Math.max(0, index - 1)]!;
-  if (upper.position === lower.position) return upper.minutes;
-  const ratio = (clamped - lower.position) / (upper.position - lower.position);
-  return Math.round((lower.minutes + ratio * (upper.minutes - lower.minutes)) / 6) * 6;
+// A logarithmic scrubber gives short durations useful space; exact input and
+// presets remain exact instead of being round-tripped through a slider position.
+export const sliderToMinutes = (position: number, duration: TimedDuration = AWAY_DURATION): number => {
+  const fraction = Math.min(100, Math.max(0, position)) / 100;
+  return Math.min(duration.max_minutes, Math.max(duration.min_minutes, Math.round(duration.min_minutes * (duration.max_minutes / duration.min_minutes) ** fraction)));
 };
 
-export const minutesToSlider = (minutes: number): number => {
-  const clamped = Math.min(2880, Math.max(30, minutes));
-  const upper = ANCHORS.find((anchor) => anchor.minutes >= clamped) ?? ANCHORS.at(-1)!;
-  const index = ANCHORS.indexOf(upper);
-  const lower = ANCHORS[Math.max(0, index - 1)]!;
-  if (upper.minutes === lower.minutes) return upper.position;
-  return Math.round(lower.position + ((clamped - lower.minutes) / (upper.minutes - lower.minutes)) * (upper.position - lower.position));
+export const minutesToSlider = (minutes: number, duration: TimedDuration = AWAY_DURATION): number => {
+  const clamped = Math.min(duration.max_minutes, Math.max(duration.min_minutes, minutes));
+  return 100 * Math.log(clamped / duration.min_minutes) / Math.log(duration.max_minutes / duration.min_minutes);
 };
 
 export const durationLabel = (minutes: number): string => {
@@ -99,16 +108,21 @@ export const durationLabel = (minutes: number): string => {
   return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`;
 };
 
-export const endLabel = (minutes: number, now = Date.now()): string => {
-  const end = new Date(now + minutes * 60_000);
-  return end.toLocaleString(undefined, {
-    weekday: end.getDate() !== new Date(now).getDate() ? "short" : undefined,
-    hour: "2-digit",
-    minute: "2-digit",
+export const formatEndTime = (end: Date, hass?: HomeAssistant): string => {
+  const clock = hass?.locale?.time_format;
+  return end.toLocaleString(clock === "system" ? undefined : hass?.locale?.language, {
+    weekday: "short", hour: "2-digit", minute: "2-digit",
+    hourCycle: clock === "24" ? "h23" : clock === "12" ? "h12" : undefined,
+    timeZone: hass?.locale?.time_zone === "server" ? hass.config?.time_zone : undefined,
   });
 };
 
-export type TimedAwayMode = "schedule" | "applying-away" | "away" | "restoring" | "fault" | "mismatch";
+export const endLabel = (minutes: number, now = Date.now(), hass?: HomeAssistant): string => {
+  const end = new Date(now + minutes * 60_000);
+  return formatEndTime(end, hass);
+};
+
+export type TimedAwayMode = "schedule" | "applying-away" | "away" | "applying-pause" | "paused" | "restoring" | "fault" | "mismatch";
 
 const normalizeMode = (value: unknown): TimedAwayMode => {
   if (typeof value !== "string") return "mismatch";
@@ -116,6 +130,8 @@ const normalizeMode = (value: unknown): TimedAwayMode => {
   if (normalized === "schedule") return "schedule";
   if (normalized === "applying away") return "applying-away";
   if (normalized === "away") return "away";
+  if (normalized === "applying pause") return "applying-pause";
+  if (normalized === "paused") return "paused";
   if (normalized === "restoring") return "restoring";
   if (normalized === "fault") return "fault";
   return "mismatch";
@@ -132,14 +148,14 @@ export const authoritativeMode = (
     mode = normalizeMode(raw);
   } else {
     const legacyState = config.active_entity ? states[config.active_entity]?.state.trim().toLowerCase() : undefined;
-    if (legacyState && ["active", "on", "true", "1"].includes(legacyState)) mode = "away";
+    if (legacyState && ["active", "on", "true", "1"].includes(legacyState)) mode = config.intent === "pause" ? "paused" : "away";
     else if (legacyState && ["idle", "off", "false", "0"].includes(legacyState)) mode = "schedule";
     else mode = "mismatch";
   }
   const timerState = config.ends_at_entity ? states[config.ends_at_entity]?.state.toLowerCase() : undefined;
   if (config.ends_at_entity && mode === "schedule" && timerState !== "idle") return "mismatch";
-  if (config.ends_at_entity && mode === "away" && timerState !== "active") return "mismatch";
-  if (mode === "away") {
+  if (config.ends_at_entity && (mode === "away" || mode === "paused") && timerState !== "active") return "mismatch";
+  if (mode === "away" || mode === "paused") {
     const endState = config.ends_at_entity ? states[config.ends_at_entity] : undefined;
     const endValue = config.ends_at_attribute ? endState?.attributes[config.ends_at_attribute] : endState?.state;
     if (typeof endValue !== "string" || !Number.isFinite(Date.parse(endValue))) return "mismatch";

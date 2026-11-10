@@ -22,8 +22,8 @@ The bundle registers:
   inline White/Colour adjustments and optional room-only scenes/member controls.
 - `custom:alx-heating-history-card` — room-by-room temperature,
   target and heating history, with inline weather and opt-in native setpoint controls.
-- `custom:alx-timed-away-card` — a fast, explicit temporary heating-away
-  control.
+- `custom:alx-timed-away-card` — temporary Away or whole-home heating pause,
+  with inline presets, exact minutes and authoritative resume state.
 - `custom:alx-pc-power-card` — wake a PC with a magic packet and shut it down
   now or after a configurable delay, with a live countdown and one-cancel abort.
 
@@ -44,6 +44,13 @@ confirms them. Off/unknown/unavailable remain explicit. A room row can bind a
 native `select` scene entity and receive member card configurations from Auto
 Entities. A single member is represented by the primary row, avoiding duplication.
 
+The timed card keeps Away as its default. Set `intent: pause` to use Pause heating
+terminology and defaults of1–2880minutes with15m/30m/1h/2h presets. Its optional
+`duration` object sets `min_minutes`, `max_minutes`, `presets` and `default_minutes`.
+The picker expands inline. Both intents display the configured backend mode and
+timer, including Applying pause/Paused, and call only configured actions. The
+backend owns authorization, physical confirmation, expiry and recovery.
+
 ## Develop
 
 ```bash
@@ -52,6 +59,6 @@ npm run check
 npm run preview
 ```
 
-Open `http://127.0.0.1:4173/preview/` or append `?view=lights` for the light-row
+Open `http://127.0.0.1:4173/preview/` or append `?view=lights` for light rows or `?view=pause` for the inline heating-pause
 fixture. Set `WIDGET_PREVIEW_PORT` when another preview already owns4173. Source comparisons are reproducible via
 `npm run sources:fetch` and `npm run sources:search -- "getConfigElement"`.
