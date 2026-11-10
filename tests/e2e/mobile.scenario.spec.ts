@@ -270,7 +270,10 @@ test("scenario: resting pause presets act in one tap while custom duration stays
   await page.screenshot({ path: "artifacts/screenshots/timed-pause-direct.png" });
   const before = await page.evaluate(() => window.previewCalls.length);
   await page.evaluate(() => { window.previewSuppressReadback = true; });
+  // This width previously fit at rest but wrapped Custom when progress text grew.
+  await page.setViewportSize({ width: 360, height: 844 });
   const beforeBox = await card.boundingBox();
+  const beforeCustomBox = await open.boundingBox();
   const direct = card.getByRole("button", { name: "Pause heating for 15m", exact: true });
   await direct.tap();
   await expect.poll(() => page.evaluate(() => window.previewCalls.length)).toBe(before + 1);
@@ -281,6 +284,8 @@ test("scenario: resting pause presets act in one tap while custom duration stays
   await expect(open).toBeDisabled();
   await expect(picker).toHaveCount(0);
   expect((await card.boundingBox())!.height).toBeCloseTo(beforeBox!.height, 1);
+  expect((await open.boundingBox())!.y).toBeCloseTo(beforeCustomBox!.y, 1);
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => window.previewSetAwayState("Applying pause", "active"));
   await expect(card.getByText("Applying pause and confirming heating")).toBeVisible();
   await page.evaluate(() => window.previewSetAwayState("Paused", "active", new Date(Date.now() + 15 * 60000).toISOString()));

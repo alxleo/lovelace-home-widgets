@@ -117,7 +117,7 @@ export class TimedAwayCard extends LitElement {
       <span>Pause</span>
       ${this.config!.duration.presets.map((minutes) => html`<button class="quick-duration" ?disabled=${!!this.pending}
         aria-label=${`Pause heating for ${durationLabel(minutes)}`} aria-busy=${String(this.pending?.kind === "apply" && this.pending.minutes === minutes)}
-        @click=${() => { if (!this.pending) { this.choose(minutes); void this.apply(); } }}>${durationLabel(minutes)}${this.pending?.kind === "apply" && this.pending.minutes === minutes ? "…" : nothing}</button>`)}
+        @click=${() => { if (!this.pending) { this.choose(minutes); void this.apply(); } }}>${durationLabel(minutes)}${this.pending?.kind === "apply" && this.pending.minutes === minutes ? html`<span class="pending-mark" aria-hidden="true">…</span>` : nothing}</button>`)}
       ${this.renderDisclosure()}
       <span class="sr-only" role="status">${this.pending?.kind === "apply" ? `Requesting ${durationLabel(this.pending.minutes!)} of heating pause. Showing reported state.` : nothing}</span>
     </div>`;
@@ -222,6 +222,8 @@ export class TimedAwayCard extends LitElement {
     .quick-pause { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:0 12px 8px; }
     .quick-pause > span { margin-right:4px; font-size:13px; color:var(--secondary-text-color,#aaa); }
     .quick-pause button { min-width:44px; padding:0 8px; }
+    .quick-duration { position:relative; }
+    .pending-mark { position:absolute; inset-inline:0; bottom:1px; font-size:10px; line-height:8px; }
     .presets { display:flex; flex-wrap:wrap; gap:6px; }
     .presets button { flex:1; }
     .presets button[aria-pressed="true"] { border-color:var(--primary-color,#ff9f32); background:color-mix(in srgb,var(--primary-color,#ff9f32) 18%,transparent); }

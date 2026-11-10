@@ -188,7 +188,7 @@ const ht=1,pt=3,ut=4;class mt{constructor(t){}get _$AU(){return this._$AM._$AU}_
       <span>Pause</span>
       ${this.config.duration.presets.map(t=>F`<button class="quick-duration" ?disabled=${!!this.pending}
         aria-label=${`Pause heating for ${Ce(t)}`} aria-busy=${String("apply"===this.pending?.kind&&this.pending.minutes===t)}
-        @click=${()=>{this.pending||(this.choose(t),this.apply())}}>${Ce(t)}${"apply"===this.pending?.kind&&this.pending.minutes===t?"…":G}</button>`)}
+        @click=${()=>{this.pending||(this.choose(t),this.apply())}}>${Ce(t)}${"apply"===this.pending?.kind&&this.pending.minutes===t?F`<span class="pending-mark" aria-hidden="true">…</span>`:G}</button>`)}
       ${this.renderDisclosure()}
       <span class="sr-only" role="status">${"apply"===this.pending?.kind?`Requesting ${Ce(this.pending.minutes)} of heating pause. Showing reported state.`:G}</span>
     </div>`}renderDisclosure(){return F`<button class="open" aria-expanded=${String(this.open)} aria-controls="duration-picker" ?disabled=${!!this.pending}
@@ -230,6 +230,8 @@ const ht=1,pt=3,ut=4;class mt{constructor(t){}get _$AU(){return this._$AM._$AU}_
     .quick-pause { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:0 12px 8px; }
     .quick-pause > span { margin-right:4px; font-size:13px; color:var(--secondary-text-color,#aaa); }
     .quick-pause button { min-width:44px; padding:0 8px; }
+    .quick-duration { position:relative; }
+    .pending-mark { position:absolute; inset-inline:0; bottom:1px; font-size:10px; line-height:8px; }
     .presets { display:flex; flex-wrap:wrap; gap:6px; }
     .presets button { flex:1; }
     .presets button[aria-pressed="true"] { border-color:var(--primary-color,#ff9f32); background:color-mix(in srgb,var(--primary-color,#ff9f32) 18%,transparent); }
