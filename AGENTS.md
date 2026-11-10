@@ -13,8 +13,9 @@
 - Search exact upstream sources through `tools/source-workshop.mjs`. Update the
   locked revision, inspected paths, and adopted/rejected decisions together.
 - Use fictional entities from `examples/public-entities.json`. Run
-  `npm run privacy`; generated screenshots stay ignored. Approved release-note backing images
-  belong under docs/release-notes, outside runtime assets. Put them inline in notes; do not attach images as downloadable release or CI assets.
+  `npm run privacy`; generated screenshots stay ignored. Approved public comparisons use native
+  GitHub Markdown image attachments inline in release notes, never repository
+  binaries or runtime assets; do not attach images as downloadable release or CI assets.
 - Run `npm run check`. Named scenarios should cover the main journey and the
   important failure, not every implementation branch.
 - A preview proves frontend behavior only. Do not publish a stable interactive
