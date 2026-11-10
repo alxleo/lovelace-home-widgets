@@ -3,7 +3,12 @@
 Mobile-first Home Assistant dashboard cards distributed as one HACS Dashboard
 plugin.
 
-![Fictional mobile heating-history preview](https://github.com/alxleo/lovelace-home-widgets/releases/download/v0.1.0/history-day-now-dark.png)
+Visual changes require the human owner's explicit approval of comparable
+before/after views before merge or deployment; see the
+[design contract](docs/design-contract.md#visual-approval-and-beforeafter-evidence).
+Approved images are embedded in [release notes](https://github.com/alxleo/lovelace-home-widgets/releases),
+not uploaded as downloadable image assets. Releases attach the installable
+JavaScript bundle only.
 
 ## Install
 
