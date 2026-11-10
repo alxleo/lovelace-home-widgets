@@ -6,12 +6,40 @@ describe("timed away", () => {
   it("scenario: quick presets and non-linear scrubber cover useful short through two-day durations", () => {
     expect([60, 240, 510].map((minutes) => durationLabel(minutes))).toEqual(["1h", "4h", "8h 30m"]);
     expect(sliderToMinutes(0)).toBe(30);
-    expect(sliderToMinutes(60)).toBe(510);
+    expect(sliderToMinutes(minutesToSlider(510))).toBe(510);
     expect(sliderToMinutes(100)).toBe(2880);
     for (const minutes of [30, 60, 240, 510, 900, 1440, 2880]) {
       expect(Math.abs(sliderToMinutes(minutesToSlider(minutes)) - minutes)).toBeLessThanOrEqual(30);
     }
     expect(endLabel(60, Date.parse("2026-08-30T14:00:00Z"))).toMatch(/:00/);
+  });
+
+  it("scenario: pause durations support quick presets, exact short pauses and configured bounds", () => {
+    const pause = parseTimedAwayConfig({
+      type: "custom:alx-timed-away-card", intent: "pause",
+      start_action: "script.example_apply_timed_pause", cancel_action: "script.example_cancel_timed_away",
+      mode_entity: "sensor.example_away_control", mode_attribute: "mode",
+      ends_at_entity: "timer.example_timed_away", ends_at_attribute: "finishes_at",
+    });
+    expect(pause.duration).toEqual({ min_minutes: 1, max_minutes: 2880, presets: [15, 30, 60, 120], default_minutes: 60 });
+    expect(pause.title).toBe("Heating");
+    for (const minutes of [1, 15, 30, 47, 60, 120, 1440, 2880]) {
+      expect(sliderToMinutes(minutesToSlider(minutes, pause.duration), pause.duration)).toBe(minutes);
+    }
+    for (const duration of [null, [], { min_minutes: 0 }, { min_minutes: 50, max_minutes: 20 }, { presets: [0] }, { presets: [2881] }, { default_minutes: 0 }]) {
+      expect(() => parseTimedAwayConfig({ ...pause, duration })).toThrow(/duration/);
+    }
+    expect(() => parseTimedAwayConfig({ ...pause, intent: "off" })).toThrow(/intent/);
+    const modes = (mode: string, timer: string): Record<string, HassState> => ({
+      "sensor.example_away_control": { entity_id: "sensor.example_away_control", state: "backend", attributes: { mode } },
+      "timer.example_timed_away": { entity_id: "timer.example_timed_away", state: timer, attributes: { finishes_at: "2026-08-31T08:30:00Z" } },
+    });
+    expect(authoritativeMode(pause, modes("Applying pause", "idle"))).toBe("applying-pause");
+    expect(authoritativeMode(pause, modes("Paused", "active"))).toBe("paused");
+    expect(authoritativeMode(pause, modes("Paused", "idle"))).toBe("mismatch");
+    expect(authoritativeMode(pause, modes("Paused", "paused"))).toBe("mismatch");
+    expect(authoritativeMode(pause, modes("Away", "active"))).toBe("away");
+    expect(authoritativeMode(pause, modes("Schedule", "active"))).toBe("mismatch");
   });
 
   it("scenario: action and state configuration rejects ambiguous or unsafe shapes", () => {

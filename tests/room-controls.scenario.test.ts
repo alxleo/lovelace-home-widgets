@@ -27,6 +27,7 @@ describe("room journals", () => {
     expect(nextTemperature({ ...control, target: 22.2 }, 1)).toBe(22.5);
     expect(nextTemperature({ ...control, target: 22.2 }, -1)).toBe(22);
     expect(temperatureControl({ ...state, state: "unavailable" })).toBeUndefined();
+    expect(temperatureControl({ ...state, state: "off", attributes: { ...state.attributes, temperature: 1 } })).toBeUndefined();
     expect(temperatureControl({ ...state, attributes: { ...state.attributes, supported_features: 0 } })).toBeUndefined();
     expect(temperatureControl({ ...state, attributes: { ...state.attributes, target_temp_step: 0 } })).toBeUndefined();
   });

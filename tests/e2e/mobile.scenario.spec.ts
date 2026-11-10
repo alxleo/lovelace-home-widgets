@@ -181,17 +181,18 @@ test("scenario: removing history during its first request leaves no observing re
   expect(observing).toBe(0);
 });
 
-test("scenario: timed away offers presets, an approximate scrubber, one apply and one cancel", async ({ page }) => {
+test("scenario: timed away offers inline presets, an approximate scrubber, one apply and one cancel", async ({ page }) => {
   await page.goto("/preview/");
   const card = page.locator("alx-timed-away-card");
   await card.scrollIntoViewIfNeeded();
   await card.getByRole("button", { name: "Set away" }).click();
-  const dialog = card.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "8h 30m" })).toBeVisible();
+  const picker = card.getByRole("region");
+  await expect(picker).toBeVisible();
+  await expect(card.getByRole("dialog")).toHaveCount(0);
+  await expect(picker.getByRole("button", { name: "8h 30m" })).toBeVisible();
   await page.screenshot({ path: "artifacts/screenshots/timed-away-picker.png" });
-  await dialog.getByRole("button", { name: "8h 30m" }).click();
-  await dialog.getByRole("button", { name: "Apply away" }).click();
+  await picker.getByRole("button", { name: "8h 30m" }).click();
+  await picker.getByRole("button", { name: "Apply away" }).click();
   await expect(card.getByText(/Away until/)).toBeVisible();
   expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({
     domain: "script", service: "example_apply_timed_away", data: { duration_minutes: 510 },
@@ -248,10 +249,95 @@ test("scenario: a refused away action stays open and explains that heating was n
   await card.scrollIntoViewIfNeeded();
   await card.getByRole("button", { name: "Set away" }).click();
   await card.getByRole("button", { name: "Apply away" }).click();
-  const dialog = card.getByRole("dialog");
-  await expect(dialog.getByRole("alert")).toContainText("heating was not changed");
-  await expect(dialog).toBeVisible();
+  const picker = card.getByRole("region");
+  await expect(card.getByRole("alert")).toContainText("heating was not changed");
+  await expect(picker).toBeVisible();
   await page.screenshot({ path: "artifacts/screenshots/timed-away-failure.png" });
+});
+
+test("scenario: heating pause uses inline exact minutes, reported modes and one resume", async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  await page.goto("/preview/?view=pause");
+  const card = page.locator("alx-timed-away-card");
+  const picker = card.getByRole("region");
+  const open = card.locator(".summary .open");
+  await expect(card.getByRole("heading", { name: "On schedule" })).toBeVisible();
+  await open.click();
+  await expect(picker).toBeVisible();
+  await expect(card.getByRole("dialog")).toHaveCount(0);
+  await expect(open).toHaveAttribute("aria-expanded", "true");
+  for (const label of ["15m", "30m", "1h", "2h"]) await expect(picker.getByRole("button", { name: label, exact: true })).toBeVisible();
+  const exact = picker.getByRole("spinbutton", { name: "Exact minutes" });
+  const apply = picker.getByRole("button", { name: "Pause heating", exact: true });
+  await exact.fill("0");
+  await expect(apply).toBeDisabled();
+  await exact.fill("2881");
+  await expect(apply).toBeDisabled();
+  await exact.fill("47");
+  await expect(picker.locator(".ends-at time")).toBeVisible();
+  const before = await page.evaluate(() => window.previewCalls.length);
+  await page.evaluate(() => { window.previewSuppressReadback = true; });
+  await apply.click();
+  await expect.poll(() => page.evaluate(() => window.previewCalls.length)).toBe(before + 1);
+  expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({ domain: "script", service: "example_apply_timed_pause", data: { duration_minutes: 47 } });
+  await expect(card.getByRole("heading", { name: "On schedule" })).toBeVisible();
+  await expect(picker.getByRole("button", { name: "Confirming…" })).toBeDisabled();
+  await page.evaluate(() => window.previewSetAwayState("Applying pause", "active"));
+  await expect(card.getByText("Applying pause and confirming heating")).toBeVisible();
+  await expect(picker).toHaveCount(0);
+  await page.evaluate(() => window.previewSetAwayState("Paused", "active", new Date(Date.now() + 47 * 60000).toISOString()));
+  await expect(card.getByRole("heading", { name: "Heating paused" })).toBeVisible();
+  await expect(card.getByText(/Paused until/)).toBeVisible();
+  const rooms = page.locator("alx-heating-history-card .room");
+  await expect(rooms.first().locator(".set-value strong")).toHaveText("Off");
+  await expect(rooms.first().locator(".now strong")).toHaveText("21.4°C");
+  await expect(rooms.first().getByRole("button", { name: "Raise Zone A target" })).toBeDisabled();
+
+  await page.screenshot({ path: "artifacts/screenshots/timed-pause-active.png" });
+  await page.evaluate(() => { window.previewSuppressReadback = false; });
+  await card.getByRole("button", { name: "Resume schedule", exact: true }).click();
+  await expect(open).toBeVisible();
+  await open.click();
+  await exact.fill("1");
+  await expect(exact).toHaveValue("1");
+  await page.locator("#theme").click();
+  await page.screenshot({ path: "artifacts/screenshots/timed-pause-picker.png" });
+  const beforeShort = await page.evaluate(() => window.previewCalls.length);
+  await apply.click();
+  await expect.poll(() => page.evaluate(() => window.previewCalls.length)).toBe(beforeShort + 1);
+  expect(await page.evaluate(() => window.previewCalls.at(-1))).toMatchObject({ data: { duration_minutes: 1 } });
+  await expect(card.getByRole("heading", { name: "Heating paused" })).toBeVisible();
+  await page.evaluate(() => window.previewSetAwayState("Paused", "paused"));
+  await expect(card.getByRole("alert")).toContainText("Heating state mismatch");
+  expect(browserErrors).toEqual([]);
+});
+
+test("scenario: an unconfirmed pause stays reported as schedule and retries inline", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/preview/?view=pause");
+  const card = page.locator("alx-timed-away-card");
+  await card.locator(".summary .open").click();
+  const picker = card.getByRole("region");
+  await page.evaluate(() => { window.previewSuppressReadback = true; });
+  const before = await page.evaluate(() => window.previewCalls.length);
+  await picker.getByRole("button", { name: "Pause heating", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.previewCalls.length)).toBe(before + 1);
+  await expect(picker.getByRole("button", { name: "Confirming…" })).toBeDisabled();
+  await page.clock.fastForward(10001);
+  await expect(card.getByRole("alert")).toContainText("No confirmation from heating");
+  await expect(card.getByRole("heading", { name: "On schedule" })).toBeVisible();
+  await expect(picker).toBeVisible();
+  await page.evaluate(() => { window.previewSuppressReadback = false; });
+  await picker.getByRole("button", { name: "Pause heating", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.previewCalls.length)).toBe(before + 2);
+  await expect(card.getByRole("heading", { name: "Heating paused" })).toBeVisible();
+  await card.getByRole("button", { name: "Resume schedule" }).click();
+  await card.locator(".summary .open").click();
+  await picker.getByRole("spinbutton", { name: "Exact minutes" }).focus();
+  await picker.getByRole("spinbutton", { name: "Exact minutes" }).press("Escape");
+  await expect(picker).toHaveCount(0);
+  await expect(card.locator(".summary .open")).toBeFocused();
 });
 
 test("scenario: pc power toggles, delays shutdown, shows the countdown and cancels it", async ({ page }) => {

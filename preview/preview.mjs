@@ -4,6 +4,7 @@ if (new URLSearchParams(window.location.search).get("view") === "lights") {
   await import("./lights.mjs");
 } else {
 
+const pause = new URLSearchParams(window.location.search).get("view") === "pause";
 const NOW = Date.parse("2026-08-30T14:00:00Z");
 let awayMode = "Schedule";
 let timerState = "idle";
@@ -41,8 +42,8 @@ const statesFor = (entity, start, end) => {
 
 const makeHass = () => ({
   states: {
-    "climate.example_zone_a": { entity_id: "climate.example_zone_a", state: "heat", attributes: { current_temperature: 21.4, temperature: zoneATarget, min_temp: 15, max_temp: 23.5, target_temp_step: 0.5, supported_features: 1 } },
-    "climate.example_zone_b": { entity_id: "climate.example_zone_b", state: "heat", attributes: { current_temperature: 20.8, temperature: zoneBTarget, min_temp: 15, max_temp: 23.5, target_temp_step: 0.5, supported_features: 1 } },
+    "climate.example_zone_a": { entity_id: "climate.example_zone_a", state: awayMode === "Paused" ? "off" : "heat", attributes: { current_temperature: 21.4, temperature: awayMode === "Paused" ? 1 : zoneATarget, min_temp: 15, max_temp: 23.5, target_temp_step: 0.5, supported_features: 1 } },
+    "climate.example_zone_b": { entity_id: "climate.example_zone_b", state: awayMode === "Paused" ? "off" : "heat", attributes: { current_temperature: 20.8, temperature: awayMode === "Paused" ? 1 : zoneBTarget, min_temp: 15, max_temp: 23.5, target_temp_step: 0.5, supported_features: 1 } },
     "sensor.example_outdoor_temperature": { entity_id: "sensor.example_outdoor_temperature", state: "13.2", attributes: {} },
     "sensor.example_precipitation_estimate": { entity_id: "sensor.example_precipitation_estimate", state: "0", attributes: {} },
     "sensor.example_away_control": { entity_id: "sensor.example_away_control", state: "backend state", attributes: { mode: awayMode } },
@@ -77,14 +78,16 @@ const makeHass = () => ({
         : "heating was not changed";
       throw new Error(`Backend refused the action; ${reason}`);
     }
-    if (domain === "climate" && window.previewSuppressReadback) return;
+    if ((domain === "climate" || domain === "script") && window.previewSuppressReadback) return;
     if (domain === "climate" && service === "set_temperature") {
       if (data.entity_id === "climate.example_zone_a") zoneATarget = Number(data.temperature);
       if (data.entity_id === "climate.example_zone_b") zoneBTarget = Number(data.temperature);
     }
-    awayMode = service === "example_apply_timed_away" ? "Away" : "Schedule";
-    timerState = awayMode === "Away" ? "active" : "idle";
-    endTime = awayMode === "Away" ? new Date(NOW + Number(data.duration_minutes ?? 0) * 60_000).toISOString() : "unknown";
+    if (domain === "script") {
+      awayMode = service === "example_apply_timed_away" ? "Away" : service === "example_apply_timed_pause" ? "Paused" : "Schedule";
+      timerState = awayMode === "Schedule" ? "idle" : "active";
+      endTime = timerState === "active" ? new Date(Date.now() + Number(data.duration_minutes ?? 0) * 60_000).toISOString() : "unknown";
+    }
     if (domain === "switch" && data.entity_id === "switch.example_pc") {
       pcPower = service === "turn_on" ? "on" : "off";
       if (pcPower === "off" && pcTimer === "active") { pcTimer = "idle"; pcRemaining = "unknown"; }
@@ -124,8 +127,8 @@ history.setConfig({
 const away = document.createElement("alx-timed-away-card");
 away.setConfig({
   type: "custom:alx-timed-away-card",
-  title: "Away",
-  start_action: "script.example_apply_timed_away",
+  intent: pause ? "pause" : "away",
+  start_action: pause ? "script.example_apply_timed_pause" : "script.example_apply_timed_away",
   cancel_action: "script.example_cancel_timed_away",
   mode_entity: "sensor.example_away_control",
   mode_attribute: "mode",
@@ -152,14 +155,16 @@ const hass = makeHass();
 history.hass = hass;
 away.hass = hass;
 pc.hass = hass;
-document.querySelector("#cards").append(history, away, pc);
+if (pause) document.querySelector("#cards").append(away, history);
+else document.querySelector("#cards").append(history, away, pc);
 document.querySelector("#theme").addEventListener("click", () => document.documentElement.classList.toggle("light"));
 
 window.previewSetAwayState = (mode, nextTimerState = "idle", finishesAt = "unknown") => {
   awayMode = mode;
   timerState = nextTimerState;
   endTime = finishesAt;
-  away.hass = makeHass();
+  const next = makeHass();
+  document.querySelectorAll("alx-heating-history-card,alx-timed-away-card,alx-pc-power-card").forEach((card) => { card.hass = next; });
 };
 
 window.previewSetPcState = (power, timer = "idle", remaining = "unknown") => {

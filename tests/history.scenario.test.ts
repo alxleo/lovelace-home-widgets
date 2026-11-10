@@ -158,6 +158,7 @@ describe("heating history", () => {
       type: "custom:alx-heating-history-card",
       series: [
         { kind: "actual_temperature", entity: "climate.example_zone_a", label: "Zone A" },
+        { kind: "target_temperature", entity: "climate.example_zone_a", label: "Target" },
         { kind: "outdoor_temperature", entity: "weather.example_location", label: "Out" },
       ],
     });
@@ -168,8 +169,8 @@ describe("heating history", () => {
         command = value;
         return {
           "climate.example_zone_a": [
-            { s: "heat", a: { current_temperature: 20.5 }, lu: (NOW - 60_000) / 1000 },
-            { s: "heat", lu: NOW / 1000 },
+            { s: "heat", a: { current_temperature: 20.5, temperature: 21 }, lu: (NOW - 60_000) / 1000 },
+            { s: "off", a: { temperature: 1 }, lu: NOW / 1000 },
           ],
           "weather.example_location": [{ s: "cloudy", a: { temperature: 12.5 }, lu: NOW / 1000 }],
         } as T;
@@ -179,7 +180,7 @@ describe("heating history", () => {
     const result = await fetchHistory(hass, config, { start: NOW - DAY_MS, end: NOW }, new AbortController().signal);
     expect(command).toMatchObject({ type: "history/history_during_period", minimal_response: false, no_attributes: false });
     expect(command).not.toHaveProperty("token");
-    expect(Object.values(result).flat().map((point) => point.value)).toEqual([20.5, 20.5, 12.5]);
+    expect(Object.values(result).flat().map((point) => point.value)).toEqual([20.5, 20.5, 21, null, 12.5]);
 
     const stateOnly = parseHistoryConfig({
       type: "custom:alx-heating-history-card",

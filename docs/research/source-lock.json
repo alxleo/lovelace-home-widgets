@@ -41,6 +41,24 @@
       "paths": ["homeassistant/components/history/websocket_api.py", "homeassistant/generated/entity_platforms.py", "tests/components/history/test_websocket_api.py"],
       "adopted": ["entity-keyed history result", "minimal s/a/lu state records", "inherit attributes when later records omit repeated a", "current entity-platform domains for privacy classification"],
       "rejected": ["ad hoc REST history client", "assuming every minimal record repeats attributes"]
+    },
+    {
+      "id": "home-assistant-timers",
+      "repository": "https://github.com/home-assistant/home-assistant.io.git",
+      "revision": "e984f75f1b338a4394aebdedea27f69898f71d98",
+      "paths": [
+        "source/_integrations/"
+      ],
+      "adopted": [
+        "Timer integration: backend-owned end time and active timer required for timed heating pause",
+        "explicit authority for schedule versus pause",
+        "backend recovery when timer expiry occurs during downtime"
+      ],
+      "rejected": [
+        "timer idle interpreted as schedule confirmation",
+        "timer paused confused with heating paused",
+        "browser-owned countdown or expiry policy"
+      ]
     }
   ]
 }

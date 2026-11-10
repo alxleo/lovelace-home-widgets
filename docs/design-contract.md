@@ -46,7 +46,10 @@ Actual ━    Target ┄    Heat requested ▧
 - The displayed target always comes from Home Assistant. A service response does
   not prove a device accepted it: controls wait for state readback, show progress,
   and time out visibly. Refusal and unavailability retain the reported target.
-  Adjusting a setpoint never implies that heating is on.
+  Adjusting a setpoint never implies that heating is on. When a climate reports
+  Off, Set says **Off** and its controls disable; off-state target sentinels are
+  gaps in target history and never distort the indoor scale. Actual readings
+  remain visible.
 - Room controls do not replace backend policy or authorization. “Heat requested”
   describes thermostat demand, never an assertion that a boiler fired.
 - Narrow cards stack room journals; wider cards place them side by side. There
@@ -98,28 +101,55 @@ Actual ━    Target ┄    Heat requested ▧
 - Rare device details use the native power-button context menu. There is no
   repeated visible details button or nested modal in ordinary control paths.
 
-## Timed away
+## Timed away and heating pause
 
-- Present one temporary Away intent, not competing Away and Off modes.
-- Offer 1h, 4h, and 8h30 shortcuts plus a non-linear, approximate 30m–48h
-  scrubber. Show both duration and end time before one Apply.
+```text
+On schedule                                      [Close]
+  [15m] [30m] [1h] [2h]
+  [47 min]     until Sun 15:47           [Pause heating]
+
+Heating paused                         [Resume schedule]
+Paused until Sun 15:47
+```
+
+| Intent | Existing card configuration | Duration defaults |
+| --- | --- | --- |
+| Temporary Away | `intent: away` (default), existing configured actions | 1h, 4h, 8h30 presets; 30m–48h; initial8h30 |
+| Temporary heating pause | `intent: pause`, configured start/resume actions | 15m, 30m, 1h, 2h presets; 1m–48h; initial1h |
+
+- Both intents use one inline duration disclosure, never a modal, backdrop or
+  browser-owned countdown. The existing card/resource is extended. Pause uses
+  one preset row and one exact-minutes/end-time/apply row. Close in the summary
+  is the sole dismissal. Away retains its approximate logarithmic scrubber;
+  exact whole minutes and presets remain exact. Show the localised end time
+  before Apply, without repeating a duration readout or permanent range prose.
+- `duration` optionally configures `min_minutes`, `max_minutes`, `presets` and
+  `default_minutes`. Invalid, blank or out-of-range exact input disables Apply
+  without silently clamping the typed value. Supported bounds are whole minutes;
+  backend policy must independently enforce them.
 - A configured backend mode entity, optionally through one attribute, is the
-  authority for Schedule, Applying away, Away, Restoring, and Fault. For this
-  contract, an idle timer never proves Schedule. Contradictory, missing, or
-  unknown Schedule/Away mode-and-timer combinations render as mismatch instead
-  of optimistic success.
-- The v0.1.0 `active_entity` field remains a compatibility input when no mode
-  entity is configured; active/idle map to Away/Schedule, while every uncertain
-  value maps to mismatch. A configured mode entity always takes precedence.
-- Away requires an active timer and a valid timer-owned end time, then shows
-  that end time and one Cancel. Fault and mismatch offer the same configured
-  resume/cancel action. An in-flight action is separate progress UI and never
-  replaces the last authoritative backend mode. Apply failure leaves the
-  picker open; failed resume keeps Fault or mismatch visible and says that
-  heating was not changed.
-- The card calls configured Home Assistant actions and displays configured
-  state only. Backend automation owns authorization, safety setpoints, receiver
-  readback, expiry, restart recovery, rollback, and schedule restoration.
+  authority for Schedule, Applying away, Away, Applying pause, Paused, Restoring
+  and Fault. Either intent understands both active modes when a backend shares
+  one timer. An idle timer never proves Schedule. Contradictory, missing or
+  unknown mode-and-timer combinations render as mismatch.
+- The existing `active_entity` field remains usable when no mode entity is
+  configured. A configured mode entity always takes precedence. Heating paused
+  is distinct from a timer's paused state: Away/Paused require an **active**
+  timer and valid timer-owned end time. Unknown or paused timers are mismatch.
+- Active state shows its authoritative end time and one Cancel/Resume schedule.
+  Fault and mismatch offer the same configured recovery action. In-flight progress
+  never replaces the reported backend mode. A service response alone does not
+  confirm the change: controls wait for reported applying/active/restoring/schedule
+  state, with a visible timeout. Apply refusal retains the picker; failed resume
+  retains the reported Fault or mismatch. Late request results cannot clear a
+  newer request; disconnect/config change clears owned timers and pending work.
+- Default titles show the current mode without repeating an extra Away/Heating
+  heading. An explicit custom title retains its meaning; the status below it
+  still exposes the backend mode. Inputs/buttons use native semantics and44px
+  targets. Escape closes the inline picker and returns focus to its disclosure.
+- Backend automation owns authorization, whole-home policy, safety setpoints,
+  receiver readback, expiry, restart recovery, rollback and schedule restoration.
+  The card calls configured actions only and does not assert physical success.
 
 ## PC power
 
@@ -143,7 +173,7 @@ Actual ━    Target ┄    Heat requested ▧
 | Dependency audit | Report every severity; fail CI and release for moderate, high or critical findings. The current low-severity [deepmerge advisory](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) has no patched release and affects the existing build resolver. It remains visible in audit output. |
 
 - The deterministic preview covers dark day history, light week history, the
-  complete duration picker, active/cancel, backend fault/recovery, and action
+  inline Away and pause pickers, exact duration, active/resume, backend fault/recovery, and action
   failure at 390 x 844. It also covers the PC power picker, live countdown,
   mismatch, and refused actions.
 - Screenshots are CI/release artifacts with SHA-256 metadata, never Git blobs.

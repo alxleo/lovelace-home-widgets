@@ -45,7 +45,7 @@ export interface TemperatureControl {
 }
 
 export const temperatureControl = (state?: HassState): TemperatureControl | undefined => {
-  if (!state || ["unavailable", "unknown"].includes(state.state) || !state.entity_id.startsWith("climate.")) return undefined;
+  if (!state || ["unavailable", "unknown", "off"].includes(state.state) || !state.entity_id.startsWith("climate.")) return undefined;
   const target = finiteNumber(state.attributes.temperature);
   const minimum = finiteNumber(state.attributes.min_temp);
   const maximum = finiteNumber(state.attributes.max_temp);
