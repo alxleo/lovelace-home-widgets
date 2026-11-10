@@ -3,6 +3,21 @@
 This is the current reusable contract. Replace a rule when measured real-device
 evidence proves a better one; do not append conversational history.
 
+## Visual approval and before/after evidence
+
+| Stage | Required decision and evidence |
+| --- | --- |
+| Scope | A request to fix room groups, membership or behavior does not authorize changing the visual language or replacing controls. Existing implementation is not proof of user approval. |
+| Before merge/deployment | Show the human owner comparable before/after views and obtain explicit approval for the exact visual change before it merges, publishes or reaches the household dashboard. Keep the change unmerged until approved. |
+| Comparison | Use the same scenario, viewport, theme and relevant state on the current baseline and proposed version. Like gitlab-pane, make what changed easy to inspect; include a focused delta when useful. A polished after-only screen is insufficient. |
+| Release notes | Embed the approved before/after images inline in the release notes. Do not upload PNG/JPEG screenshots as downloadable release assets or CI artifact bundles. Runtime assets contain only files the product needs. |
+| Privacy | Public widget notes use fictional fixtures. Real household captures belong only in the private consuming repository's release notes; their documentation backing files are outside frontend/runtime assets. |
+| Rollback | An explicit request to restore a previous design authorizes that scoped restoration. Preserve subsequent device, integration and membership repairs; do not use rollback as another redesign. |
+
+The household Lights baseline is the earlier Bubble Card controls with existing
+room grouping and room-only scenes. The ALX light-row component contract below
+describes an available implementation, not approval to replace that baseline.
+
 ## Shared interaction principles
 
 ```text
@@ -215,7 +230,9 @@ Until Sun 15:47
   inline Away and pause pickers, exact duration, active/resume, backend fault/recovery, and action
   failure at 390 x 844. It also covers the PC power picker, live countdown,
   mismatch, and refused actions.
-- Screenshots are CI/release artifacts with SHA-256 metadata, never Git blobs.
+- Approved before/after screenshots are rendered inline in release notes, not
+  attached as image assets. Keep private household captures out of this public
+  repository and out of the frontend bundle.
 - A preview proves layout and the frontend contract. Production acceptance still
   requires the real signed-in route, real entity state, and physical readback
   for mutating controls.

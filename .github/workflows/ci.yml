@@ -34,13 +34,6 @@ jobs:
       - run: npm run test:e2e
       - run: npm run visual:contract
       - run: npm run privacy:artifacts
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
-        with:
-          name: mobile-visual-contract
-          path: |
-            artifacts/screenshots/
-            artifacts/visual-contract.json
-          if-no-files-found: error
 
   hacs:
     runs-on: ubuntu-latest
