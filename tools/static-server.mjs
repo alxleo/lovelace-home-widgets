@@ -3,7 +3,11 @@ import { createServer } from "node:http";
 import { extname, isAbsolute, relative, resolve, sep } from "node:path";
 
 const root = process.cwd();
-const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".map": "application/json" };
+const port = Number(process.env.WIDGET_PREVIEW_PORT ?? 4173);
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("WIDGET_PREVIEW_PORT must be a valid TCP port");
+const previewUrl = new URL("http://127.0.0.1:4173/preview/");
+previewUrl.port = String(port);
+const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json", ".map": "application/json" };
 
 createServer((request, response) => {
   let file;
@@ -28,4 +32,4 @@ createServer((request, response) => {
   } catch {
     response.writeHead(404).end("Not found");
   }
-}).listen(4173, "127.0.0.1", () => console.log("Preview: http://127.0.0.1:4173/preview/"));
+}).listen(port, "127.0.0.1", () => console.log(`Preview: ${previewUrl.href}`));

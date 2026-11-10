@@ -6,6 +6,7 @@ export interface HassState {
 
 export interface HomeAssistant {
   states: Record<string, HassState>;
+  entities?: Record<string, { icon?: string }>;
   callWS<T>(command: Record<string, unknown>): Promise<T>;
   callService(
     domain: string,
@@ -24,6 +25,7 @@ export interface LovelaceCardEditor extends HTMLElement {
 
 declare global {
   interface Window {
+    loadCardHelpers?: () => Promise<{ createCardElement(config: Record<string, unknown>): HTMLElement & { hass?: HomeAssistant } }>;
     customCards?: Array<{
       type: string;
       name: string;

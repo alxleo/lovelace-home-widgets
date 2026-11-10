@@ -43,3 +43,16 @@ cards:
     power_entity: switch.example_pc
     timer_entity: timer.example_pc_shutdown
     presets: [15, 30, 60]
+
+  - type: custom:alx-light-row-card
+    entity: light.example_zone_a_group
+    name: Zone A
+    group: true
+    scene_entity: select.example_zone_a_scene
+    cards:
+      - type: custom:alx-light-row-card
+        entity: light.example_zone_a_light_a
+        name: Light A
+      - type: custom:alx-light-row-card
+        entity: light.example_zone_a_light_c
+        name: Light C

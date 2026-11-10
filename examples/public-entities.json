@@ -13,5 +13,19 @@
   "switch.example_pc",
   "timer.example_pc_shutdown",
   "binary_sensor.example_pc_connected",
-  "sensor.example_pc_time_on_today"
+  "sensor.example_pc_time_on_today",
+  "light.example_zone_a_group",
+  "light.example_zone_a_light_a",
+  "light.example_zone_a_light_b",
+  "light.example_zone_a_light_c",
+  "light.example_zone_b_group",
+  "light.example_zone_c_group",
+  "light.example_zone_d_light",
+  "light.example_zone_e_light",
+  "light.example_zone_f_light",
+  "light.example_fixed_dimmer",
+  "light.example_white_dimmer",
+  "light.example_socket",
+  "select.example_zone_a_scene",
+  "select.example_zone_c_scene"
 ]
