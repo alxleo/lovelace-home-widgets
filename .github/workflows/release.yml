@@ -33,7 +33,11 @@ jobs:
       - run: npm run test:e2e
       - run: npm run visual:contract
       - run: npm run privacy:artifacts
-      - name: Attach immutable bundle and visual evidence
+      - name: Attach the installable bundle only
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" --clobber dist/alx-home-widgets.js artifacts/visual-contract.json artifacts/screenshots/*.png
+        run: gh release upload "$GITHUB_REF_NAME" --clobber dist/alx-home-widgets.js
+
+# Approved before/after images are embedded in the release notes by the release
+# author using GitHub's Markdown image attachment support. They are not separate
+# download assets and are never included in the frontend bundle.
