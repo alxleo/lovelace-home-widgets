@@ -20,7 +20,7 @@ const defaultAttribute = (series: HistorySeriesConfig): string | undefined => {
   return undefined;
 };
 
-const valueFor = (
+export const valueFor = (
   series: HistorySeriesConfig,
   state: string,
   attributes: Record<string, unknown>,

@@ -25,6 +25,7 @@ export class HeatingHistoryEditor extends LitElement {
           <option value="day">Day</option><option value="week">Week</option>
         </select>
       </label>
+      <label><input type="checkbox" .checked=${this.config.temperature_controls} @change=${(inputEvent: Event) => this.updateConfig({ temperature_controls: (inputEvent.target as HTMLInputElement).checked })}> Enable native temperature controls</label>
       <label>Series (JSON)
         <textarea .value=${this.seriesText} @input=${this.changeSeries}></textarea>
       </label>

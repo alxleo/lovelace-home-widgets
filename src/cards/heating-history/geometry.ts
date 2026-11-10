@@ -13,8 +13,8 @@ export const heldPointAt = (points: HistoryPoint[], time: number): HistoryPoint 
 
 export const heldStepPaths = (
   points: HistoryPoint[],
-  mapX: (value: number) => number,
-  mapY: (time: number) => number,
+  mapX: (time: number) => number,
+  mapY: (value: number) => number,
   end: number,
 ): string[] => {
   const ordered = sorted(points);
@@ -23,20 +23,20 @@ export const heldStepPaths = (
   let lastNumericTime: number | undefined;
   for (const point of ordered) {
     if (typeof point.value === "number") {
-      if (commands.length === 0) commands = [`M ${mapX(point.value)},${mapY(point.time)}`];
-      else commands.push(`V ${mapY(point.time)}`, `H ${mapX(point.value)}`);
+      if (commands.length === 0) commands = [`M ${mapX(point.time)},${mapY(point.value)}`];
+      else commands.push(`H ${mapX(point.time)}`, `V ${mapY(point.value)}`);
       lastNumericTime = point.time;
       continue;
     }
     if (commands.length > 0) {
-      if (lastNumericTime !== undefined && point.time > lastNumericTime) commands.push(`V ${mapY(point.time)}`);
+      if (lastNumericTime !== undefined && point.time > lastNumericTime) commands.push(`H ${mapX(point.time)}`);
       paths.push(commands.join(" "));
       commands = [];
       lastNumericTime = undefined;
     }
   }
   if (commands.length > 0) {
-    if (lastNumericTime !== undefined && end > lastNumericTime) commands.push(`V ${mapY(end)}`);
+    if (lastNumericTime !== undefined && end > lastNumericTime) commands.push(`H ${mapX(end)}`);
     paths.push(commands.join(" "));
   }
   return paths;

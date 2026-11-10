@@ -17,8 +17,8 @@ render the compact comparison with `npm run sources:board`.
   contributes release discipline and local HA fixtures. User-supplied JavaScript
   templates are deliberately excluded.
 - [ApexCharts Card](https://github.com/RomRider/apexcharts-card/tree/6d3f1e9843f2d58ff73098128e78be8f57a5272b)
-  contributes typed history/config thinking. Its chart engine would outweigh
-  this small, purpose-built vertical timeline.
+  contributes typed history/config thinking. Explicit units, held steps and gap handling inform the room charts. A second
+  chart engine would duplicate this card’s existing bounded recorder owner.
 
 ## Product references
 
@@ -40,9 +40,19 @@ copied into Git.
 | --- | --- | --- | --- |
 | Hive dashboard | [App Store asset](https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/64/00/86/6400868f-247f-c0b4-eb69-8fe523e57816/iPhone-6.7-02.jpg/320x480bb.jpg) | Actual temperature, explicit temporary state, remaining time, Stop | Full-screen dial and large empty control area |
 | Hive insights | [App Store asset](https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/1b/16/c3/1b16c321-575a-b92b-0835-de09407c5d7e/iPhone-6.7-04.png/320x480bb.jpg) | Weather beside heating history | Cost claims and subscription framing |
-| tado timeline | [Support asset](https://downloads.intercomcdn.com/i/o/882521328/29215034c4c8a6c4352a1bd3/DEFAULT+%281%29.png) | Weather and state events on one inspectable time coordinate | Colour-only states |
+| tado timeline | [Support asset](https://downloads.intercomcdn.com/i/o/882521328/29215034c4c8a6c4352a1bd3/DEFAULT+%281%29.png) | Room-local inspection, aligned weather context and full-height demand bands | Colour-only states and unrelated traces on a shared indoor/outdoor scale |
 | tado demand | [Support asset](https://downloads.intercomcdn.com/i/o/882522652/16230657e19ff806ef208299/DEFAULT+%2B+HR+%281%29.png) | Heating-request context | Implying thermostat demand proves appliance firing |
-| Netatmo history | [App Store asset](https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/70/af/fe/70affeed-a9d6-6fa4-6b52-17e71f852e58/pr_source.png/392x696bb.png) | Actual, stepped target, and activity in one compact chart | Ambiguous unlabelled axes |
+| Netatmo history | [App Store asset](https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/70/af/fe/70affeed-a9d6-6fa4-6b52-17e71f852e58/pr_source.png/392x696bb.png) | Room-local actual, stepped target and demand aligned in time | Ambiguous axes, redundant controls, and energy claims not supported by the supplied data |
 
 Signed CDN links can expire; the adjacent product/support page remains the
 stable provenance. The workshop never downloads these images into the repo.
+
+The room-journal layout is a design judgment informed by these sources: both
+rooms remain visible, current values sit beside their own history, and weather
+is disclosed inline on its own labelled scale. Native controls are an explicit
+opt-in extension; no new dashboard component or chart engine is required.
+
+Native datetime behavior follows Home Assistant’s [frontend locale contract](https://github.com/home-assistant/frontend/blob/dev/src/data/translation.ts)
+and [time formatter](https://github.com/home-assistant/frontend/blob/dev/src/common/datetime/format_time.ts):
+respect 12/24-hour preference, locale language, and server/local timezone.
+The implementation uses the browser’s Intl API and adds no formatting dependency.

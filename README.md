@@ -18,8 +18,8 @@ readback. For local evaluation, run `npm run preview` and open
 
 The bundle registers:
 
-- `custom:alx-heating-history-card` — vertically scrolling temperature,
-  demand, and weather history.
+- `custom:alx-heating-history-card` — room-by-room temperature,
+  target and heating history, with inline weather and opt-in native setpoint controls.
 - `custom:alx-timed-away-card` — a fast, explicit temporary heating-away
   control.
 - `custom:alx-pc-power-card` — wake a PC with a magic packet and shut it down
@@ -29,6 +29,11 @@ See [`examples/cards.yaml`](examples/cards.yaml) for fictional configuration
 and [`docs/design-contract.md`](docs/design-contract.md) for the stable UX
 contract. This repository does not contain household configuration or Home
 Assistant backend automation.
+
+The history card stays read-only by default. Set `temperature_controls: true`
+to show −/+ beside each room target. Native capability, bounds and step are
+required; a target change remains pending until Home Assistant reports it.
+Use an optional matching `room` label to group series from separate entities.
 
 ## Develop
 

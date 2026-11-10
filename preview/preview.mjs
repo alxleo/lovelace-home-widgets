@@ -8,6 +8,8 @@ window.previewCalls = [];
 window.previewFailNext = false;
 window.previewDeferNext = false;
 let deferredRequest;
+let zoneATarget = 21;
+let zoneBTarget = 21;
 
 const wave = (time, base, amplitude, phase = 0) => base + Math.sin((time / 86_400_000) * Math.PI * 2 + phase) * amplitude;
 const statesFor = (entity, start, end) => {
@@ -35,8 +37,8 @@ const statesFor = (entity, start, end) => {
 
 const makeHass = () => ({
   states: {
-    "climate.example_zone_a": { entity_id: "climate.example_zone_a", state: "heat", attributes: { current_temperature: 21.4, temperature: 21 } },
-    "climate.example_zone_b": { entity_id: "climate.example_zone_b", state: "heat", attributes: { current_temperature: 20.8, temperature: 21 } },
+    "climate.example_zone_a": { entity_id: "climate.example_zone_a", state: "heat", attributes: { current_temperature: 21.4, temperature: zoneATarget, min_temp: 15, max_temp: 23.5, target_temp_step: 0.5, supported_features: 1 } },
+    "climate.example_zone_b": { entity_id: "climate.example_zone_b", state: "heat", attributes: { current_temperature: 20.8, temperature: zoneBTarget, min_temp: 15, max_temp: 23.5, target_temp_step: 0.5, supported_features: 1 } },
     "sensor.example_outdoor_temperature": { entity_id: "sensor.example_outdoor_temperature", state: "13.2", attributes: {} },
     "sensor.example_precipitation_estimate": { entity_id: "sensor.example_precipitation_estimate", state: "0", attributes: {} },
     "sensor.example_away_control": { entity_id: "sensor.example_away_control", state: "backend state", attributes: { mode: awayMode } },
@@ -46,7 +48,8 @@ const makeHass = () => ({
     "sensor.example_pc_time_on_today": { entity_id: "sensor.example_pc_time_on_today", state: pcUsage, attributes: { unit_of_measurement: "h" } },
     "timer.example_pc_shutdown": { entity_id: "timer.example_pc_shutdown", state: pcTimer, attributes: { remaining: pcRemaining } }
   },
-  config: { unit_system: { temperature: "°C" } },
+  config: { unit_system: { temperature: "°C" }, time_zone: "Europe/London" },
+  locale: { language: "en-GB", time_format: "24", time_zone: "server" },
   async callWS(command) {
     if (window.previewFailHistory) throw new Error("Recorder is temporarily unavailable");
     const start = Date.parse(command.start_time);
@@ -69,6 +72,11 @@ const makeHass = () => ({
         : domain === "timer" ? "no countdown was started"
         : "heating was not changed";
       throw new Error(`Backend refused the action; ${reason}`);
+    }
+    if (domain === "climate" && window.previewSuppressReadback) return;
+    if (domain === "climate" && service === "set_temperature") {
+      if (data.entity_id === "climate.example_zone_a") zoneATarget = Number(data.temperature);
+      if (data.entity_id === "climate.example_zone_b") zoneBTarget = Number(data.temperature);
     }
     awayMode = service === "example_apply_timed_away" ? "Away" : "Schedule";
     timerState = awayMode === "Away" ? "active" : "idle";
@@ -94,13 +102,16 @@ const formatRemaining = (seconds) => {
 const history = document.createElement("alx-heating-history-card");
 history.setConfig({
   type: "custom:alx-heating-history-card",
-  title: "Heating history",
+  title: "Heating",
+  temperature_controls: true,
   default_scale: "day",
   series: [
     { kind: "actual_temperature", entity: "climate.example_zone_a", label: "Zone A" },
     { kind: "actual_temperature", entity: "climate.example_zone_b", label: "Zone B" },
     { kind: "target_temperature", entity: "climate.example_zone_a", label: "Target" },
     { kind: "heating_request", entity: "climate.example_zone_a", label: "Heat" },
+    { kind: "target_temperature", entity: "climate.example_zone_b", label: "Target" },
+    { kind: "heating_request", entity: "climate.example_zone_b", label: "Heat" },
     { kind: "outdoor_temperature", entity: "sensor.example_outdoor_temperature", label: "Out" },
     { kind: "precipitation_estimate", entity: "sensor.example_precipitation_estimate", label: "Rain est." }
   ]

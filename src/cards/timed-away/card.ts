@@ -56,8 +56,8 @@ export class TimedAwayCard extends LitElement {
         <div class="summary" data-mode=${mode}>
           <div class="icon" aria-hidden="true">⌂</div>
           <div class="copy">
-            <h2>${this.config.title}</h2>
-            <span role=${mode === "fault" || mode === "mismatch" ? "alert" : nothing}>${this.statusText(mode, endsAt)}</span>
+            <h2>${this.config.title === "Away" ? mode === "schedule" ? "On schedule" : mode === "away" ? "Away" : mode === "applying-away" ? "Applying away" : mode === "restoring" ? "Restoring schedule" : this.config.title : this.config.title}</h2>
+            ${this.config.title === "Away" && mode === "schedule" ? nothing : html`<span role=${mode === "fault" || mode === "mismatch" ? "alert" : nothing}>${this.statusText(mode, endsAt)}</span>`}
           </div>
           ${this.renderSummaryAction(mode)}
         </div>
