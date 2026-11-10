@@ -328,8 +328,14 @@ test("scenario: light brightness is accessible by touch and keyboard without los
   expect((await ceiling.boundingBox())!.height).toBeCloseTo(stableHeight, 1);
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => window.previewCalls.length)).toBe(callsBefore + 1);
-  await page.touchscreen.tap(bounds.x + bounds.width * .8, bounds.y + bounds.height / 2);
-  await expect.poll(async () => (await page.evaluate(() => window.previewCalls.at(-1)))?.service).toBe("turn_on");
+  const callsBeforeTouch = await page.evaluate(() => window.previewCalls.length);
+  const requestedPercentage = 100;
+  await page.touchscreen.tap(bounds.x + bounds.width - 2, bounds.y + bounds.height / 2);
+  await expect.poll(() => page.evaluate(() => window.previewCalls.length)).toBe(callsBeforeTouch + 1);
+  expect(await page.evaluate((index) => window.previewCalls[index], callsBeforeTouch)).toEqual({
+    domain: "light", service: "turn_on",
+    data: { entity_id: "light.example_zone_a_light_a", brightness_pct: requestedPercentage },
+  });
   await expect(ceiling.locator(".identity")).toContainText("Light A");
   await slider.focus();
   const before = Number(await slider.inputValue());
