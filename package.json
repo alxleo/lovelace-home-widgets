@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "npm@11.5.1",
+  "packageManager": "npm@11.21.2",
   "description": "Mobile-first Home Assistant dashboard widgets",
   "license": "MIT",
   "repository": "https://github.com/alxleo/lovelace-home-widgets.git",
