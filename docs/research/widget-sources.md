@@ -84,9 +84,15 @@ never enter the public repository.
 | [HA custom-card lifecycle](https://contributors.home-assistant.io/frontend/custom-ui/card/) | Report authoritative `hass` updates, native Sections automatic height and disconnect cleanup | Browser timeouts are confirmation feedback, never heating expiry/restore policy. |
 | Existing shipped timed-away surface and [WAI disclosure pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/) | One labelled button expands inline controls using `aria-expanded` / `aria-controls`; focus stays in the page | A modal sheet, overlay or second duration component is unnecessary for this small form. |
 
-The inline choice is a design judgment extending the shipped card. Exact minutes
+The direct-preset choice is a design judgment extending the shipped card.
+The [WAI button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/button/)
+distinguishes action buttons from pressed/toggle state; pause presets send
+actions immediately, while Custom remains a disclosure. The exact inspected
+button/disclosure source paths and revision are locked together in the source
+board. Exact minutes
 replace precision dragging for pause, while15m/30m/1h/2h serve routine use.
-Away retains its approximate scrubber. Pause has no duplicate duration readout,
+Away retains its approximate scrubber. Primary pause actions are visible on
+the resting card; only the exact-duration form is secondary. Pause has no duplicate duration readout,
 range prose or second dismissal. Pause
 terminology is opt-in; existing Away action/configuration remains valid. Both
 active modes are backend states, not inferred from an idle timer or service reply.

@@ -45,9 +45,10 @@ native `select` scene entity and receive member card configurations from Auto
 Entities. A single member is represented by the primary row, avoiding duplication.
 
 The timed card keeps Away as its default. Set `intent: pause` to use Pause heating
-terminology and defaults of1–2880minutes with15m/30m/1h/2h presets. Its optional
+terminology and defaults of 1–2880 minutes with 15 m / 30 m / 1 h / 2 h presets. Its optional
 `duration` object sets `min_minutes`, `max_minutes`, `presets` and `default_minutes`.
-The picker expands inline. Both intents display the configured backend mode and
+Common pause presets start with one tap from the resting card; only Custom
+expands an exact-duration form inline. Both intents display the configured backend mode and
 timer, including Applying pause/Paused, and call only configured actions. The
 backend owns authorization, physical confirmation, expiry and recovery.
 
