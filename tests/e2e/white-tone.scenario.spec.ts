@@ -9,6 +9,9 @@ test("scenario: existing Bubble disclosure sends one full-range warm command and
   await expect(slider).toBeVisible();
   const range = slider.getByRole("slider");
   await expect(range).toHaveValue("626");
+  // Bubble animates the disclosure. Native pointer coordinates need its stable
+  // box; hover uses Playwright's stability check without an arbitrary sleep.
+  await range.hover();
   const box = (await range.boundingBox())!;
   await page.mouse.move(box.x + box.width * .626, box.y + box.height / 2);
   await page.mouse.down();
