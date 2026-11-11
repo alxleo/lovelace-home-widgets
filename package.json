@@ -19,7 +19,7 @@
     "sources:search": "node tools/source-workshop.mjs search",
     "sources:board": "node tools/source-workshop.mjs board",
     "test": "vitest run tests/*.test.ts tests/*.test.mjs",
-    "test:e2e": "playwright test",
+    "test:e2e": "node tools/source-workshop.mjs fixtures && playwright test",
     "typecheck": "tsc --noEmit",
     "visual:contract": "node tools/visual-contract.mjs",
     "verify:dist": "git ls-files --error-unmatch dist/alx-home-widgets.js && git cat-file -e HEAD:dist/alx-home-widgets.js && git diff --exit-code HEAD -- dist/alx-home-widgets.js"

@@ -112,6 +112,18 @@ Actual ━    Target ┄    Heat requested ▧
 
 ## Light rows
 
+The optional white-tone extension composes into an existing Bubble row through
+its documented JavaScript module surface. It replaces only the named white
+slider element; Bubble keeps the thermometer disclosure and close action. The
+replacement owns its pointer, touch and keyboard events, including when disabled;
+no gesture may reach the old white slider or underlying brightness control.
+The reciprocal colour-temperature scale gives warm whites useful travel without
+discarding either native Kelvin endpoint. Device bounds and native Kelvin
+commands remain authoritative. Do not intercept services, change prototypes,
+invent narrower hardware capabilities or replace the surrounding light row.
+Commands occur on release and wait for relevant device readback. Off/unavailable
+lights stay disabled, and a failed request keeps the reported state visible.
+
 ```text
 [capability/power] [Living ·72%████░░] [Scene ▾] [Adjust] [lights ▾]
   [capability/power] [Ceiling ·68%██░] [Adjust ▴]

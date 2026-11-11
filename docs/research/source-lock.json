@@ -13,9 +13,10 @@
       "id": "bubble-card",
       "repository": "https://github.com/Clooos/Bubble-Card.git",
       "revision": "2c3b43d1168ca05701be15fd96e416609601ecfa",
-      "paths": ["README.md", "src/components/sub-button/types/slider/index.js", "src/components/slider/create.js", "src/components/sub-button/styles.css"],
-      "adopted": ["compact named brightness bars", "release-only slider commands", "capability-driven white and colour controls"],
-      "rejected": ["row-replacing adjustment overlays that hide identity", "unlabelled non-semantic slider interaction", "global input blocker", "arbitrary JavaScript/CSS templates"]
+      "fixture": {"url": "https://github.com/Clooos/Bubble-Card/releases/download/v3.4.3/bubble-card.js", "sha256": "51b54894e51624d8a4596a576ad82b084df69cc7c9473aeaa167f255e01fb396"},
+      "paths": ["README.md", "src/components/sub-button/types/slider/index.js", "src/components/slider/create.js", "src/components/slider/changes.js", "src/components/sub-button/styles.css"],
+      "adopted": ["compact named brightness bars", "release-only slider commands", "capability-driven white and colour controls", "documented JavaScript module variables and named white-temperature DOM slot for one typed white-tone extension; native disclosure remains with Bubble; test against checksum-pinned installed release"],
+      "rejected": ["row-replacing adjustment overlays that hide identity", "unlabelled non-semantic slider interaction", "global input blocker", "arbitrary per-card JavaScript/CSS business logic", "service/prototype interception or fake capability bounds"]
     },
     {
       "id": "button-card",
