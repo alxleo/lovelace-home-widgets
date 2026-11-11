@@ -27,12 +27,37 @@ The bundle registers:
 
 - `custom:alx-light-row-card` — compact named brightness bars with labelled
   inline White/Colour adjustments and optional room-only scenes/member controls.
+
 - `custom:alx-heating-history-card` — room-by-room temperature,
   target and heating history, with inline weather and opt-in native setpoint controls.
 - `custom:alx-timed-away-card` — temporary Away or whole-home heating pause,
   with inline presets, exact minutes and authoritative resume state.
 - `custom:alx-pc-power-card` — wake a PC with a magic packet and shut it down
   now or after a configurable delay, with a live countdown and one-cancel abort.
+
+An optional **full-range white-tone slider** can also compose into an existing
+Bubble Card 3.4.3 row without replacing its brightness or colour controls:
+
+| Before | With the extension |
+| --- | --- |
+| Kelvin-linear spacing crowds warm white at the end | Reciprocal spacing gives warm white more travel, preserving both native endpoints |
+| White disclosure hides the light's identity | Name and Kelvin remain inside the same bar during preview, pending and failure |
+| Native Bubble disclosure/close | The same disclosure/close; no nested popup or second settings entity |
+
+Load this bundle alongside Bubble and add the following to a light row whose
+white slider sub-button is named `White temperature`:
+
+```yaml
+styles: |
+  ${window.ALXHomeWidgets.installWhiteTone(card, hass, entity)}
+```
+
+The optional fourth argument is a display name; otherwise HA's friendly name is
+used. The extension owns its range events, releases one native Kelvin command,
+and waits for changed device readback. It disables while the light is off or
+unavailable. `/preview/white-tone.html` exercises it with the checksum-pinned
+upstream Bubble release and fictional entities. Existing default cards are
+unchanged; no component fork or hardware-range override is needed.
 
 See [`examples/cards.yaml`](examples/cards.yaml) for fictional configuration
 and [`docs/design-contract.md`](docs/design-contract.md) for the stable UX

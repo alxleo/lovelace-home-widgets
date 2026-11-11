@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -22,6 +23,19 @@ if (command === "fetch") {
     run("git", ["-C", target, "checkout", "--detach", "--force", source.revision]);
     const actual = execFileSync("git", ["-C", target, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
     if (actual !== source.revision) throw new Error(`${source.id}: expected ${source.revision}, got ${actual}`);
+  }
+} else if (command === "fixtures") {
+  const directory = join(process.cwd(), ".cache", "fixtures");
+  mkdirSync(directory, { recursive: true });
+  for (const source of sources.filter((item) => item.fixture)) {
+    const target = join(directory, `${source.id}.js`);
+    const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+    if (existsSync(target) && digest(readFileSync(target)) === source.fixture.sha256) continue;
+    const response = await fetch(source.fixture.url);
+    if (!response.ok) throw new Error(`${source.id}: release fixture download failed`);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (digest(bytes) !== source.fixture.sha256) throw new Error(`${source.id}: release fixture checksum mismatch`);
+    writeFileSync(target, bytes);
   }
 } else if (command === "search") {
   const query = process.argv.slice(3).join(" ");
