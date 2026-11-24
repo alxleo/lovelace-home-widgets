@@ -95,3 +95,5 @@ npm run preview
 Open `http://127.0.0.1:4173/preview/` or append `?view=lights` for light rows or `?view=pause` for the inline heating-pause
 fixture. Set `WIDGET_PREVIEW_PORT` when another preview already owns4173. Source comparisons are reproducible via
 `npm run sources:fetch` and `npm run sources:search -- "getConfigElement"`.
+
+<!-- Temporary fixture for checking required GitHub statuses. -->
